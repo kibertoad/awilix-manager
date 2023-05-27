@@ -2,7 +2,7 @@ import type { AwilixContainer } from 'awilix'
 
 declare module 'awilix' {
   // @ts-ignore
-  interface ResolverOptions {
+  interface ResolverOptions<T> {
     asyncInit?: boolean | string
     asyncInitPriority?: number // lower means it gets initted earlier
     asyncDispose?: boolean | string
