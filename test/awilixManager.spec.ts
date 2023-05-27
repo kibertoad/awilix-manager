@@ -1,7 +1,7 @@
 import { asClass, createContainer } from 'awilix'
-import { describe } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { asyncDispose, asyncInit, eagerInject } from '../lib/awilixManager'
+import {asyncDispose, asyncInit, AwilixManager, eagerInject} from '../lib/awilixManager'
 
 class AsyncInitClass {
   isInitted = false
@@ -124,7 +124,11 @@ describe('awilixManager', () => {
         }),
       )
 
-      await asyncInit(diContainer)
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true
+      })
+      await manager.executeInit()
 
       const { dependency1, dependency2 } = diContainer.cradle
 
@@ -158,7 +162,10 @@ describe('awilixManager', () => {
         }),
       )
 
-      await asyncDispose(diContainer)
+      const manager = new AwilixManager({
+        diContainer,
+      })
+      await manager.executeDispose()
 
       const { dependency1, dependency2, dependency3 } = diContainer.cradle
 
@@ -211,7 +218,11 @@ describe('awilixManager', () => {
         }),
       )
 
-      eagerInject(diContainer)
+      const manager = new AwilixManager({
+        diContainer,
+        eagerInject: true
+      })
+      manager.executeInit()
 
       expect(isInittedGlobal).toBe(true)
     })
