@@ -1,7 +1,7 @@
 import type { AwilixContainer } from 'awilix'
 
 declare module 'awilix' {
-  // @ts-ignore
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ResolverOptions<T> {
     asyncInit?: boolean | string
     asyncInitPriority?: number // lower means it gets initted earlier
@@ -50,7 +50,11 @@ export async function asyncInit(diContainer: AwilixContainer) {
       const asyncInitPriority1 = resolver1.asyncInitPriority ?? 1
       const asyncInitPriority2 = resolver2.asyncInitPriority ?? 1
 
-      return (10 * (asyncInitPriority1 - asyncInitPriority2)) + (key1.localeCompare(key2))
+      if (asyncInitPriority1 !== asyncInitPriority2) {
+        return asyncInitPriority1 - asyncInitPriority2
+      }
+
+      return key1.localeCompare(key2)
     })
 
   for (const entry of dependenciesWithAsyncInit) {
@@ -80,10 +84,16 @@ export async function asyncDispose(diContainer: AwilixContainer) {
       return entry[1].asyncDispose
     })
     .sort((entry1, entry2) => {
-      const asyncDisposePriority1 = entry1[1].asyncDisposePriority ?? 1
-      const asyncDisposePriority2 = entry2[1].asyncDisposePriority ?? 1
+      const [key1, resolver1] = entry1
+      const [key2, resolver2] = entry2
+      const asyncDisposePriority1 = resolver1.asyncDisposePriority ?? 1
+      const asyncDisposePriority2 = resolver2.asyncDisposePriority ?? 1
 
-      return asyncDisposePriority1 - asyncDisposePriority2
+      if (asyncDisposePriority1 !== asyncDisposePriority2) {
+        return asyncDisposePriority1 - asyncDisposePriority2
+      }
+
+      return key1.localeCompare(key2)
     })
 
   for (const entry of dependenciesWithAsyncDispose) {

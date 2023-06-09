@@ -141,7 +141,7 @@ describe('awilixManager', () => {
         injectionMode: 'PROXY',
       })
       diContainer.register(
-          'dependency1',
+          'dependency2',
           asClass(AsyncInitGetClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
@@ -149,7 +149,7 @@ describe('awilixManager', () => {
           }),
       )
       diContainer.register(
-          'dependency2',
+          'dependency1',
           asClass(AsyncInitSetClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
@@ -227,6 +227,35 @@ describe('awilixManager', () => {
           asyncDispose: true,
           asyncDisposePriority: 1,
         }),
+      )
+
+      await asyncDispose(diContainer)
+
+      const { dependency1, dependency2 } = diContainer.cradle
+
+      expect(isDisposedGlobal).toBe(true)
+    })
+
+    it('execute asyncDispose on registered dependencies with deterministic tiebreaking', async () => {
+      isInittedGlobal = false
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+          'dependency2',
+          asClass(AsyncDisposeGetClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+            asyncDisposePriority: 1,
+          }),
+      )
+      diContainer.register(
+          'dependency1',
+          asClass(AsyncDisposeSetClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+            asyncDisposePriority: 1,
+          }),
       )
 
       await asyncDispose(diContainer)
