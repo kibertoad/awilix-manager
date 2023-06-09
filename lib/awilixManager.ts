@@ -45,10 +45,12 @@ export async function asyncInit(diContainer: AwilixContainer) {
       return entry[1].asyncInit
     })
     .sort((entry1, entry2) => {
-      const asyncInitPriority1 = entry1[1].asyncInitPriority ?? 1
-      const asyncInitPriority2 = entry2[1].asyncInitPriority ?? 1
+      const [key1, resolver1] = entry1
+      const [key2, resolver2] = entry2
+      const asyncInitPriority1 = resolver1.asyncInitPriority ?? 1
+      const asyncInitPriority2 = resolver2.asyncInitPriority ?? 1
 
-      return asyncInitPriority1 - asyncInitPriority2
+      return (10 * (asyncInitPriority1 - asyncInitPriority2)) + (key1.localeCompare(key2))
     })
 
   for (const entry of dependenciesWithAsyncInit) {

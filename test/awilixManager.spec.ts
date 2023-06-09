@@ -1,7 +1,7 @@
 import { asClass, createContainer } from 'awilix'
 import { describe, expect, it } from 'vitest'
 
-import {asyncDispose, asyncInit, AwilixManager, eagerInject} from '../lib/awilixManager'
+import { asyncDispose, asyncInit, AwilixManager, eagerInject } from '../lib/awilixManager'
 
 class AsyncInitClass {
   isInitted = false
