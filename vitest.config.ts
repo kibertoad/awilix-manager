@@ -9,7 +9,7 @@ export default defineConfig({
     coverage: {
       include: ['lib/**/*.ts'],
       exclude: ['lib/**/*.spec.ts'],
-      reporter: ['text'],
+      reporter: ['text', 'lcov'],
       all: true,
       statements: 100,
       branches: 100,
