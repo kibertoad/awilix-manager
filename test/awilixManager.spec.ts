@@ -134,6 +134,39 @@ describe('awilixManager', () => {
 
       expect(isInittedGlobal).toBe(true)
     })
+
+    it('execute asyncInit on registered dependencies with a deterministic order tiebreaking', async () => {
+      isInittedGlobal = false
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+          'dependency1',
+          asClass(AsyncInitGetClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+            asyncInitPriority: 1,
+          }),
+      )
+      diContainer.register(
+          'dependency2',
+          asClass(AsyncInitSetClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+            asyncInitPriority: 1,
+          }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true
+      })
+      await manager.executeInit()
+
+      const { dependency1, dependency2 } = diContainer.cradle
+
+      expect(isInittedGlobal).toBe(true)
+    })
   })
 
   describe('asyncDispose', () => {
