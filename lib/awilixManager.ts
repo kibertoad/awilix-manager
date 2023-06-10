@@ -14,11 +14,12 @@ declare module 'awilix' {
 export type AwilixManagerConfig = {
   diContainer: AwilixContainer
   asyncInit?: boolean
+  asyncDispose?: boolean
   eagerInject?: boolean
 }
 
 export class AwilixManager {
-  private readonly config: AwilixManagerConfig
+  public readonly config: AwilixManagerConfig
 
   constructor(config: AwilixManagerConfig) {
     this.config = config
