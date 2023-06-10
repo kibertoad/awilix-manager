@@ -11,10 +11,10 @@ Wrapper over awilix to support more complex use-cases
 First install the package:
 
 ```bash
-npm i toad-scheduler
+npm i awilix-manager
 ```
 
-Next, set up your jobs:
+Next, set up your DI configuration:
 
 ```js
 import { AwilixManager } from 'awilix-manager'
