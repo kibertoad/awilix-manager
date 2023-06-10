@@ -53,5 +53,10 @@
     "awilix",
     "di"
   ],
-  "homepage": "https://github.com/kibertoad/awilix-manager"
+  "homepage": "https://github.com/kibertoad/awilix-manager",
+  "files": [
+    "README.md",
+    "LICENSE",
+    "dist/*"
+  ]
 }
