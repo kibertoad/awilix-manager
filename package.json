@@ -1,7 +1,7 @@
 {
   "name": "awilix-manager",
   "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "dependencies": {
     "awilix": "^8.0.1"
   },
