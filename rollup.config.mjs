@@ -51,6 +51,6 @@ export default [
       },
     ],
     plugins: [typescript()],
-    external: ['awilix-manager']
+    external: ['awilix-manager'],
   },
 ]

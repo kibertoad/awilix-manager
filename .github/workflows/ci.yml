@@ -35,7 +35,6 @@ jobs:
       - name: Run Tests
         run: npm run test:coverage
 
-
   automerge:
     needs: build
     runs-on: ubuntu-latest

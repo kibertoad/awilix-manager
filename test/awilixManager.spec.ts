@@ -102,6 +102,44 @@ describe('awilixManager', () => {
       expect(dependency3.isInitted).toBe(true)
     })
 
+    it('does bit execute asyncInit on registered dependencies if disabled', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+          'dependency1',
+          asClass(AsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+            enabled: false,
+          }),
+      )
+      diContainer.register(
+          'dependency2',
+          asClass(AsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+            eagerInject: true,
+          }),
+      )
+      diContainer.register(
+          'dependency3',
+          asClass(AsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: 'asyncInit',
+            enabled: false,
+          }),
+      )
+
+      await asyncInit(diContainer)
+
+      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+      expect(dependency1.isInitted).toBe(false)
+      expect(dependency2.isInitted).toBe(true)
+      expect(dependency3.isInitted).toBe(false)
+    })
+
     it('execute asyncInit on registered dependencies in defined order', async () => {
       isInittedGlobal = false
       const diContainer = createContainer({
@@ -126,7 +164,7 @@ describe('awilixManager', () => {
 
       const manager = new AwilixManager({
         diContainer,
-        asyncInit: true
+        asyncInit: true,
       })
       await manager.executeInit()
 
@@ -141,25 +179,25 @@ describe('awilixManager', () => {
         injectionMode: 'PROXY',
       })
       diContainer.register(
-          'dependency2',
-          asClass(AsyncInitGetClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            asyncInitPriority: 1,
-          }),
+        'dependency2',
+        asClass(AsyncInitGetClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncInitPriority: 1,
+        }),
       )
       diContainer.register(
-          'dependency1',
-          asClass(AsyncInitSetClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            asyncInitPriority: 1,
-          }),
+        'dependency1',
+        asClass(AsyncInitSetClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncInitPriority: 1,
+        }),
       )
 
       const manager = new AwilixManager({
         diContainer,
-        asyncInit: true
+        asyncInit: true,
       })
       await manager.executeInit()
 
@@ -207,6 +245,46 @@ describe('awilixManager', () => {
       expect(dependency3.isDisposed).toBe(true)
     })
 
+    it('does not execute asyncDispose on registered dependencies if disabled', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+          'dependency1',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+            enabled: false,
+          }),
+      )
+      diContainer.register(
+          'dependency2',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+          }),
+      )
+      diContainer.register(
+          'dependency3',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: 'asyncDispose',
+            enabled: false,
+          }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+      })
+      await manager.executeDispose()
+
+      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+      expect(dependency1.isDisposed).toBe(false)
+      expect(dependency2.isDisposed).toBe(true)
+      expect(dependency3.isDisposed).toBe(false)
+    })
+
     it('execute asyncDispose on registered dependencies in defined order', async () => {
       isInittedGlobal = false
       const diContainer = createContainer({
@@ -242,20 +320,20 @@ describe('awilixManager', () => {
         injectionMode: 'PROXY',
       })
       diContainer.register(
-          'dependency2',
-          asClass(AsyncDisposeGetClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            asyncDisposePriority: 1,
-          }),
+        'dependency2',
+        asClass(AsyncDisposeGetClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 1,
+        }),
       )
       diContainer.register(
-          'dependency1',
-          asClass(AsyncDisposeSetClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            asyncDisposePriority: 1,
-          }),
+        'dependency1',
+        asClass(AsyncDisposeSetClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 1,
+        }),
       )
 
       await asyncDispose(diContainer)
@@ -282,11 +360,34 @@ describe('awilixManager', () => {
 
       const manager = new AwilixManager({
         diContainer,
-        eagerInject: true
+        eagerInject: true,
       })
       manager.executeInit()
 
       expect(isInittedGlobal).toBe(true)
+    })
+
+    it('does not inject dependencies eagerly if disabled', () => {
+      isInittedGlobal = false
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+          'dependency1',
+          asClass(InitSetClass, {
+            lifetime: 'SINGLETON',
+            eagerInject: true,
+            enabled: false,
+          }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        eagerInject: true,
+      })
+      manager.executeInit()
+
+      expect(isInittedGlobal).toBe(false)
     })
   })
 })
