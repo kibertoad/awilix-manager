@@ -8,6 +8,7 @@ declare module 'awilix' {
     asyncDispose?: boolean | string
     asyncDisposePriority?: number // lower means it gets disposed earlier
     eagerInject?: boolean
+    enabled?: boolean
   }
 }
 
@@ -43,7 +44,7 @@ export class AwilixManager {
 export async function asyncInit(diContainer: AwilixContainer) {
   const dependenciesWithAsyncInit = Object.entries(diContainer.registrations)
     .filter((entry) => {
-      return entry[1].asyncInit
+      return entry[1].asyncInit && entry[1].enabled !== false
     })
     .sort((entry1, entry2) => {
       const [key1, resolver1] = entry1
@@ -71,7 +72,7 @@ export async function asyncInit(diContainer: AwilixContainer) {
 
 export function eagerInject(diContainer: AwilixContainer) {
   const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter((entry) => {
-    return entry[1].eagerInject
+    return entry[1].eagerInject && entry[1].enabled !== false
   })
 
   for (const entry of dependenciesWithEagerInject) {
@@ -82,7 +83,7 @@ export function eagerInject(diContainer: AwilixContainer) {
 export async function asyncDispose(diContainer: AwilixContainer) {
   const dependenciesWithAsyncDispose = Object.entries(diContainer.registrations)
     .filter((entry) => {
-      return entry[1].asyncDispose
+      return entry[1].asyncDispose && entry[1].enabled !== false
     })
     .sort((entry1, entry2) => {
       const [key1, resolver1] = entry1
