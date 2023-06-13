@@ -42,7 +42,7 @@ diContainer.register(
     asyncDisposePriority: 10, // lower value means its disposed earlier
     asyncInit: 'init',
     asyncDispose: 'dispose',
-    eagerInject: true, // this will be constructed and cached immediately. Redundant for resolves with `asyncInit` parameter set, as that is always resolved eagerly.
+    eagerInject: true, // this will be constructed and cached immediately. Redundant for resolves with `asyncInit` parameter set, as that is always resolved eagerly. If a string is passed, then additional synchronous method will be invoked in addition to constructor on injection.
   }),
 )
 
