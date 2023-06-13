@@ -24,6 +24,7 @@ class AsyncDisposeClass {
 }
 
 let isInittedGlobal = false
+let isInittedCustom = false
 let isDisposedGlobal = false
 
 class AsyncInitSetClass {
@@ -63,6 +64,10 @@ class AsyncDisposeGetClass {
 class InitSetClass {
   constructor() {
     isInittedGlobal = true
+  }
+
+  init() {
+    isInittedCustom = true
   }
 }
 
@@ -107,28 +112,28 @@ describe('awilixManager', () => {
         injectionMode: 'PROXY',
       })
       diContainer.register(
-          'dependency1',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            enabled: false,
-          }),
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          enabled: false,
+        }),
       )
       diContainer.register(
-          'dependency2',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            eagerInject: true,
-          }),
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          eagerInject: true,
+        }),
       )
       diContainer.register(
-          'dependency3',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: 'asyncInit',
-            enabled: false,
-          }),
+        'dependency3',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: 'asyncInit',
+          enabled: false,
+        }),
       )
 
       await asyncInit(diContainer)
@@ -250,27 +255,27 @@ describe('awilixManager', () => {
         injectionMode: 'PROXY',
       })
       diContainer.register(
-          'dependency1',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            enabled: false,
-          }),
+        'dependency1',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          enabled: false,
+        }),
       )
       diContainer.register(
-          'dependency2',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-          }),
+        'dependency2',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
       )
       diContainer.register(
-          'dependency3',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: 'asyncDispose',
-            enabled: false,
-          }),
+        'dependency3',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: 'asyncDispose',
+          enabled: false,
+        }),
       )
 
       const manager = new AwilixManager({
@@ -367,18 +372,41 @@ describe('awilixManager', () => {
       expect(isInittedGlobal).toBe(true)
     })
 
+    it('injects dependencies eagerly and calls given init method', () => {
+      isInittedGlobal = false
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(InitSetClass, {
+          lifetime: 'SINGLETON',
+          eagerInject: 'init',
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        eagerInject: true,
+      })
+      manager.executeInit()
+
+      expect(isInittedGlobal).toBe(true)
+      expect(isInittedCustom).toBe(true)
+    })
+
     it('does not inject dependencies eagerly if disabled', () => {
       isInittedGlobal = false
       const diContainer = createContainer({
         injectionMode: 'PROXY',
       })
       diContainer.register(
-          'dependency1',
-          asClass(InitSetClass, {
-            lifetime: 'SINGLETON',
-            eagerInject: true,
-            enabled: false,
-          }),
+        'dependency1',
+        asClass(InitSetClass, {
+          lifetime: 'SINGLETON',
+          eagerInject: true,
+          enabled: false,
+        }),
       )
 
       const manager = new AwilixManager({

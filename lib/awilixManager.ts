@@ -7,7 +7,7 @@ declare module 'awilix' {
     asyncInitPriority?: number // lower means it gets initted earlier
     asyncDispose?: boolean | string
     asyncDisposePriority?: number // lower means it gets disposed earlier
-    eagerInject?: boolean
+    eagerInject?: boolean | string
     enabled?: boolean
   }
 }
@@ -76,7 +76,10 @@ export function eagerInject(diContainer: AwilixContainer) {
   })
 
   for (const entry of dependenciesWithEagerInject) {
-    diContainer.resolve(entry[0])
+    const resolvedComponent = diContainer.resolve(entry[0])
+    if (typeof entry[1].eagerInject === 'string') {
+      resolvedComponent[entry[1].eagerInject]()
+    }
   }
 }
 
