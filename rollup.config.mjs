@@ -31,7 +31,7 @@ export default [
       },
       {
         ...esmOutBase,
-        file: `dist/${pkg.name}.js`,
+        file: `dist/${pkg.name}.mjs`,
       },
       {
         ...esmOutBase,
