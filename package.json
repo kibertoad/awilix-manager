@@ -1,17 +1,15 @@
 {
   "name": "awilix-manager",
   "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
-  "version": "1.2.1-RC3",
+  "version": "1.2.1-RC4",
   "dependencies": {
     "awilix": "^8.0.1"
   },
-  "main": "dist/awilix-manager",
-  "type": "module",
+  "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build:rollup",
-    "build:rollup": "rollup --config",
+    "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
     "lint": "eslint . --ext .ts",
