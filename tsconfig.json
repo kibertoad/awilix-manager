@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "module": "ES2022",
+    "module": "CommonJS",
     "target": "ES2022",
     "lib": ["ES2022", "dom"],
-    "sourceMap": true,
+    "sourceMap": false,
     "declaration": true,
     "declarationMap": false,
     "types": ["node", "vitest/globals"],
