@@ -250,6 +250,45 @@ describe('awilixManager', () => {
       expect(dependency3.isDisposed).toBe(true)
     })
 
+      it('execute asyncDispose defined as function on registered dependencies', async () => {
+          const diContainer = createContainer({
+              injectionMode: 'PROXY',
+          })
+          diContainer.register(
+              'dependency1',
+              asClass(AsyncDisposeClass, {
+                  lifetime: 'SINGLETON',
+                  asyncDispose: async (instance) => {
+                      instance.isDisposed = true
+                  },
+              }),
+          )
+          diContainer.register(
+              'dependency2',
+              asClass(AsyncDisposeClass, {
+                  lifetime: 'SINGLETON',
+              }),
+          )
+          diContainer.register(
+              'dependency3',
+              asClass(AsyncDisposeClass, {
+                  lifetime: 'SINGLETON',
+                  asyncDispose: 'asyncDispose',
+              }),
+          )
+
+          const manager = new AwilixManager({
+              diContainer,
+          })
+          await manager.executeDispose()
+
+          const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+          expect(dependency1.isDisposed).toBe(true)
+          expect(dependency2.isDisposed).toBe(false)
+          expect(dependency3.isDisposed).toBe(true)
+      })
+
     it('does not execute asyncDispose on registered dependencies if disabled', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
@@ -276,6 +315,46 @@ describe('awilixManager', () => {
           asyncDispose: 'asyncDispose',
           enabled: false,
         }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+      })
+      await manager.executeDispose()
+
+      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+      expect(dependency1.isDisposed).toBe(false)
+      expect(dependency2.isDisposed).toBe(true)
+      expect(dependency3.isDisposed).toBe(false)
+    })
+
+    it('does not execute asyncDispose on registered dependencies if undefined', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+          'dependency1',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+            enabled: false,
+          }),
+      )
+      diContainer.register(
+          'dependency2',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+          }),
+      )
+      diContainer.register(
+          'dependency3',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: 'asyncDispose',
+            enabled: false,
+          }),
       )
 
       const manager = new AwilixManager({

@@ -5,7 +5,7 @@ declare module 'awilix' {
   interface ResolverOptions<T> {
     asyncInit?: boolean | string
     asyncInitPriority?: number // lower means it gets initted earlier
-    asyncDispose?: boolean | string
+    asyncDispose?: boolean | string | ((instance: T) => Promise<unknown>)
     asyncDisposePriority?: number // lower means it gets disposed earlier
     eagerInject?: boolean | string
     enabled?: boolean
@@ -103,11 +103,23 @@ export async function asyncDispose(diContainer: AwilixContainer) {
 
   for (const entry of dependenciesWithAsyncDispose) {
     const resolvedValue = diContainer.resolve(entry[0])
-    if (entry[1].asyncDispose === true) {
+
+    const asyncDispose = entry[1].asyncDispose
+
+    if (typeof asyncDispose === 'function') {
+      await asyncDispose(resolvedValue)
+      continue
+    }
+
+    if (asyncDispose === true) {
       await resolvedValue.asyncDispose()
-    } else {
+      continue
+    }
+
+    // assume it's a string
+    {
       // @ts-ignore
-      await resolvedValue[entry[1].asyncDispose]()
+      await resolvedValue[asyncDispose]()
     }
   }
 }
