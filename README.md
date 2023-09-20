@@ -110,7 +110,7 @@ You can use `tags` parameter in conjunction with the `getWithTags` method for th
 import { AwilixManager, getWithTags } from 'awilix-manager'
 import { asClass, createContainer } from 'awilix'
 
-class QueueConsumerHighPriortyClass {
+class QueueConsumerHighPriorityClass {
   
 }
 
