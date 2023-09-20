@@ -114,15 +114,15 @@ const diContainer = createContainer({
   injectionMode: 'PROXY',
 })
 
-class QueueConsumerHighPriortyClass {
+class QueueConsumerHighPriorityClass {
 }
 
-class QueueConsumerLowPriortyClass {
+class QueueConsumerLowPriorityClass {
 }
 
 diContainer.register(
   'dependency1',
-  asClass(QueueConsumerHighPriortyClass, {
+  asClass(QueueConsumerHighPriorityClass, {
     lifetime: 'SINGLETON',
     asyncInit: true,
     tags: ['queue', 'high-priority'],
@@ -130,7 +130,7 @@ diContainer.register(
 )
 diContainer.register(
   'dependency2',
-  asClass(QueueConsumerLowPriortyClass, {
+  asClass(QueueConsumerLowPriorityClass, {
     lifetime: 'SINGLETON',
     asyncInit: true,
     tags: ['queue', 'low-priority'],
