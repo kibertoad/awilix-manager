@@ -1,7 +1,7 @@
 import { asClass, createContainer } from 'awilix'
 import { describe, expect, it } from 'vitest'
 
-import { asyncDispose, asyncInit, AwilixManager, eagerInject } from '../lib/awilixManager'
+import { asyncDispose, asyncInit, AwilixManager, eagerInject, getWithTags } from "../lib/awilixManager";
 
 class AsyncInitClass {
   isInitted = false
@@ -105,6 +105,87 @@ describe('awilixManager', () => {
       expect(dependency1.isInitted).toBe(true)
       expect(dependency2.isInitted).toBe(false)
       expect(dependency3.isInitted).toBe(true)
+    })
+
+    it('execute getWithTags on registered dependencies with valid tags', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          tags: ['engine', 'google'],
+        }),
+      )
+      diContainer.register(
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          tags: ['engine', 'google'],
+        }),
+      )
+
+      await asyncInit(diContainer)
+
+      const { dependency1, dependency2 } = diContainer.cradle
+      const expectItemFound = getWithTags(diContainer, ['engine'])
+      expect(expectItemFound).toStrictEqual({
+        dependency1: dependency1,
+        dependency2: dependency2,
+      })
+
+      const expectedItemNotFound = getWithTags(diContainer, ['engine', 'engine2'])
+      expect(expectedItemNotFound).toStrictEqual({})
+    })
+
+    it('execute awilixManager.getWithTags on registered dependencies with valid tags', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+
+      class QueueConsumerHighPriorityClass {
+      }
+
+      class QueueConsumerLowPriorityClass {
+      }
+
+      diContainer.register(
+        'dependency1',
+        asClass(QueueConsumerHighPriorityClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          tags: ['queue', 'high-priority'],
+        }),
+      )
+      diContainer.register(
+        'dependency2',
+        asClass(QueueConsumerLowPriorityClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          tags: ['queue', 'low-priority'],
+        }),
+      )
+
+      const awilixManager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        asyncDispose: true,
+      })
+
+      const { dependency1, dependency2 } = diContainer.cradle
+      const result1 = awilixManager.getWithTags(diContainer, ['queue'])
+      expect(result1).toStrictEqual({
+        dependency1: dependency1,
+        dependency2: dependency2,
+      })
+
+      const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
+      expect(result2).toStrictEqual({
+        dependency2: dependency2,
+      })
     })
 
     it('does bit execute asyncInit on registered dependencies if disabled', async () => {

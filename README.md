@@ -100,3 +100,51 @@ const awilixManager = new AwilixManager({
 await awilixManager.executeInit() // this will not execute asyncInit, because consumer is disabled
 await awilixManager.executeDispose() // this will not execute asyncDispose, because consumer is disabled
 ```
+
+## Fetching dependencies based on tags
+
+In some cases you may want to get dependencies based on a supplied list of tags. 
+You can use `tags` parameter in conjunction with the `getWithTags` method for that:
+
+```js
+import { AwilixManager } from 'awilix-manager'
+import { asClass, createContainer } from 'awilix'
+
+const diContainer = createContainer({
+  injectionMode: 'PROXY',
+})
+
+class QueueConsumerHighPriorityClass {
+}
+
+class QueueConsumerLowPriorityClass {
+}
+
+diContainer.register(
+  'dependency1',
+  asClass(QueueConsumerHighPriorityClass, {
+    lifetime: 'SINGLETON',
+    asyncInit: true,
+    tags: ['queue', 'high-priority'],
+  }),
+)
+diContainer.register(
+  'dependency2',
+  asClass(QueueConsumerLowPriorityClass, {
+    lifetime: 'SINGLETON',
+    asyncInit: true,
+    tags: ['queue', 'low-priority'],
+  }),
+)
+
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  asyncDispose: true,
+})
+
+// This will return dependency1 and dependency2
+const result1 = awilixManager.getWithTags(diContainer, ['queue'])
+// This will return only dependency2
+const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
+```

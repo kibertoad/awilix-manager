@@ -8,6 +8,7 @@ declare module 'awilix' {
     asyncDispose?: boolean | string | ((instance: T) => Promise<unknown>)
     asyncDisposePriority?: number // lower means it gets disposed earlier
     eagerInject?: boolean | string
+    tags?: string[]
     enabled?: boolean
   }
 }
@@ -38,6 +39,11 @@ export class AwilixManager {
 
   async executeDispose() {
     await asyncDispose(this.config.diContainer)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
+    return getWithTags(diContainer, tags)
   }
 }
 
@@ -81,6 +87,23 @@ export function eagerInject(diContainer: AwilixContainer) {
       resolvedComponent[entry[1].eagerInject]()
     }
   }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
+  const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
+    return (
+      entry[1].enabled !== false && tags.every((v) => entry[1].tags && entry[1].tags.includes(v))
+    )
+  })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resolvedComponents: Record<string, any> = {}
+  for (const entry of dependenciesWithTags) {
+    resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
+  }
+
+  return resolvedComponents
 }
 
 export async function asyncDispose(diContainer: AwilixContainer) {
