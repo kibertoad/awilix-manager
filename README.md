@@ -107,21 +107,18 @@ In some cases you may want to get dependencies based on a supplied list of tags.
 You can use `tags` parameter in conjunction with the `getWithTags` method for that:
 
 ```js
-import { AwilixManager, getWithTags } from 'awilix-manager'
+import { AwilixManager } from 'awilix-manager'
 import { asClass, createContainer } from 'awilix'
-
-class QueueConsumerHighPriorityClass {
-  
-}
-
-class QueueConsumerLowPriorityClass {
-
-}
 
 const diContainer = createContainer({
   injectionMode: 'PROXY',
 })
 
+class QueueConsumerHighPriortyClass {
+}
+
+class QueueConsumerLowPriortyClass {
+}
 
 diContainer.register(
   'dependency1',
@@ -135,13 +132,19 @@ diContainer.register(
   'dependency2',
   asClass(QueueConsumerLowPriortyClass, {
     lifetime: 'SINGLETON',
-    tags: ['queue', 'low-priority']
+    asyncInit: true,
+    tags: ['queue', 'low-priority'],
   }),
 )
 
-// This will return dependency1 and dependency2
-const result1 = getWithTags(['queue'])
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  asyncDispose: true,
+})
 
-// This will ONLY return dependency2
-const result2 = getWithTags(['queue', 'low-priority'])
+// This will return dependency1 and dependency2
+const result1 = awilixManager.getWithTags(diContainer, ['queue'])
+// This will return only dependency2
+const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
 ```

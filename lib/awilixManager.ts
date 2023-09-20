@@ -40,6 +40,11 @@ export class AwilixManager {
   async executeDispose() {
     await asyncDispose(this.config.diContainer)
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
+    return getWithTags(diContainer, tags)
+  }
 }
 
 export async function asyncInit(diContainer: AwilixContainer) {
