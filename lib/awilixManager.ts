@@ -85,14 +85,16 @@ export function eagerInject(diContainer: AwilixContainer) {
   }
 }
 
-export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, object> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
   const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
     return (
       entry[1].enabled !== false && tags.every((v) => entry[1].tags && entry[1].tags.includes(v))
     )
   })
 
-  const resolvedComponents: Record<string, object> = {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resolvedComponents: Record<string, any> = {}
   for (const entry of dependenciesWithTags) {
     resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
   }
