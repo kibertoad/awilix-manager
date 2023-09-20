@@ -18,7 +18,6 @@ export type AwilixManagerConfig = {
   asyncInit?: boolean
   asyncDispose?: boolean
   eagerInject?: boolean
-  tags?: string[]
 }
 
 export class AwilixManager {
