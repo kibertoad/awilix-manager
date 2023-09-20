@@ -8,8 +8,13 @@ declare module 'awilix' {
     asyncDispose?: boolean | string | ((instance: T) => Promise<unknown>)
     asyncDisposePriority?: number // lower means it gets disposed earlier
     eagerInject?: boolean | string
+    tags?: string[]
     enabled?: boolean
   }
+}
+
+interface AssociativeArray {
+  [key: string]: object
 }
 
 export type AwilixManagerConfig = {
@@ -17,6 +22,7 @@ export type AwilixManagerConfig = {
   asyncInit?: boolean
   asyncDispose?: boolean
   eagerInject?: boolean
+  tags?: string[]
 }
 
 export class AwilixManager {
@@ -81,6 +87,21 @@ export function eagerInject(diContainer: AwilixContainer) {
       resolvedComponent[entry[1].eagerInject]()
     }
   }
+}
+
+export function getWithTags(diContainer: AwilixContainer, tags: string[]): AssociativeArray {
+  const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
+    return (
+      entry[1].enabled !== false && tags.every((v) => entry[1].tags && entry[1].tags.includes(v))
+    )
+  })
+
+  const resolvedComponents: AssociativeArray = {}
+  for (const entry of dependenciesWithTags) {
+    resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
+  }
+
+  return resolvedComponents
 }
 
 export async function asyncDispose(diContainer: AwilixContainer) {

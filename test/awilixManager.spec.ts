@@ -1,7 +1,7 @@
 import { asClass, createContainer } from 'awilix'
 import { describe, expect, it } from 'vitest'
 
-import { asyncDispose, asyncInit, AwilixManager, eagerInject } from '../lib/awilixManager'
+import { asyncDispose, asyncInit, AwilixManager, eagerInject, getWithTags } from "../lib/awilixManager";
 
 class AsyncInitClass {
   isInitted = false
@@ -95,6 +95,7 @@ describe('awilixManager', () => {
         asClass(AsyncInitClass, {
           lifetime: 'SINGLETON',
           asyncInit: 'asyncInit',
+          tags: ['engine', 'google'],
         }),
       )
 
@@ -105,6 +106,30 @@ describe('awilixManager', () => {
       expect(dependency1.isInitted).toBe(true)
       expect(dependency2.isInitted).toBe(false)
       expect(dependency3.isInitted).toBe(true)
+    })
+
+    it('execute asyncInit on registered dependencies with valid tags', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          tags: ['engine', 'google'],
+        }),
+      )
+
+      await asyncInit(diContainer)
+
+      const { dependency1 } = diContainer.cradle
+      const expectItemFound = getWithTags(diContainer, ['engine'])
+      expect(expectItemFound).toStrictEqual({
+        dependency1: dependency1,
+      })
+      const expectedItemNotFound = getWithTags(diContainer, ['engine', 'engine2'])
+      expect(expectedItemNotFound).toStrictEqual({})
     })
 
     it('does bit execute asyncInit on registered dependencies if disabled', async () => {
