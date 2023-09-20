@@ -13,10 +13,6 @@ declare module 'awilix' {
   }
 }
 
-interface AssociativeArray {
-  [key: string]: object
-}
-
 export type AwilixManagerConfig = {
   diContainer: AwilixContainer
   asyncInit?: boolean
@@ -89,14 +85,14 @@ export function eagerInject(diContainer: AwilixContainer) {
   }
 }
 
-export function getWithTags(diContainer: AwilixContainer, tags: string[]): AssociativeArray {
+export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, object> {
   const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
     return (
       entry[1].enabled !== false && tags.every((v) => entry[1].tags && entry[1].tags.includes(v))
     )
   })
 
-  const resolvedComponents: AssociativeArray = {}
+  const resolvedComponents: Record<string, object> = {}
   for (const entry of dependenciesWithTags) {
     resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
   }

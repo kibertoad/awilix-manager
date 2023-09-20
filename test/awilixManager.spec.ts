@@ -95,7 +95,6 @@ describe('awilixManager', () => {
         asClass(AsyncInitClass, {
           lifetime: 'SINGLETON',
           asyncInit: 'asyncInit',
-          tags: ['engine', 'google'],
         }),
       )
 
@@ -120,14 +119,24 @@ describe('awilixManager', () => {
           tags: ['engine', 'google'],
         }),
       )
+      diContainer.register(
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          tags: ['engine', 'google'],
+        }),
+      )
 
       await asyncInit(diContainer)
 
-      const { dependency1 } = diContainer.cradle
+      const { dependency1, dependency2 } = diContainer.cradle
       const expectItemFound = getWithTags(diContainer, ['engine'])
       expect(expectItemFound).toStrictEqual({
         dependency1: dependency1,
+        dependency2: dependency2,
       })
+
       const expectedItemNotFound = getWithTags(diContainer, ['engine', 'engine2'])
       expect(expectedItemNotFound).toStrictEqual({})
     })
