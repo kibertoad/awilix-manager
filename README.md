@@ -114,7 +114,7 @@ class QueueConsumerHighPriorityClass {
   
 }
 
-class QueueConsumerLowPriortyClass {
+class QueueConsumerLowPriorityClass {
 
 }
 
