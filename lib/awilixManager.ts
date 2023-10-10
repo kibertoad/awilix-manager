@@ -68,10 +68,10 @@ export async function asyncInit(diContainer: AwilixContainer) {
   for (const entry of dependenciesWithAsyncInit) {
     const resolvedValue = diContainer.resolve(entry[0])
     if (entry[1].asyncInit === true) {
-      await resolvedValue.asyncInit()
+      await resolvedValue.asyncInit(diContainer.cradle)
     } else {
       // @ts-ignore
-      await resolvedValue[entry[1].asyncInit]()
+      await resolvedValue[entry[1].asyncInit](diContainer.cradle)
     }
   }
 }
