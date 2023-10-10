@@ -5,8 +5,13 @@ import { asyncDispose, asyncInit, AwilixManager, eagerInject, getWithTags } from
 
 class AsyncInitClass {
   isInitted = false
+  isUpdated = false
 
-  asyncInit() {
+  asyncInit(dependencies: any) {
+    if (dependencies.dependency2) {
+        dependencies.dependency2.isUpdated += 1
+    }
+
     return Promise.resolve().then(() => {
       this.isInitted = true
     })
@@ -106,6 +111,44 @@ describe('awilixManager', () => {
       expect(dependency2.isInitted).toBe(false)
       expect(dependency3.isInitted).toBe(true)
     })
+
+      it('execute asyncInit on registered dependencies and use dependencies from cradle', async () => {
+          const diContainer = createContainer({
+              injectionMode: 'PROXY',
+          })
+          diContainer.register(
+              'dependency1',
+              asClass(AsyncInitClass, {
+                  lifetime: 'SINGLETON',
+                  asyncInit: true,
+              }),
+          )
+          diContainer.register(
+              'dependency2',
+              asClass(AsyncInitClass, {
+                  lifetime: 'SINGLETON',
+              }),
+          )
+          diContainer.register(
+              'dependency3',
+              asClass(AsyncInitClass, {
+                  lifetime: 'SINGLETON',
+                  asyncInit: 'asyncInit',
+              }),
+          )
+
+          await asyncInit(diContainer)
+
+          const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+          expect(dependency1.isInitted).toBe(true)
+          expect(dependency2.isInitted).toBe(false)
+          expect(dependency3.isInitted).toBe(true)
+
+          expect(dependency1.isUpdated).toBe(false)
+          expect(dependency2.isUpdated).toBe(2)
+          expect(dependency3.isUpdated).toBe(false)
+      })
 
     it('execute getWithTags on registered dependencies with valid tags', async () => {
       const diContainer = createContainer({
