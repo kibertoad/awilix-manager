@@ -3,7 +3,7 @@
   "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
   "version": "3.3.0",
   "dependencies": {
-    "awilix": "^8.0.1"
+    "awilix": "^9.0.0"
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
