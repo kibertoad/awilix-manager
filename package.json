@@ -1,7 +1,7 @@
 {
   "name": "awilix-manager",
   "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -14,7 +14,7 @@
     "prepublishOnly": "npm run build:release"
   },
   "peerDependencies": {
-    "awilix": ">9"
+    "awilix": ">=9.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.5.3",
