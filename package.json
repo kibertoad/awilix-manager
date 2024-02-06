@@ -12,25 +12,17 @@
     "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
-    "lint": "eslint . --ext .ts && tsc --project tsconfig.lint.json --noEmit",
-    "lint:fix": "eslint .  --ext .ts --fix",
-    "format": "prettier --write .",
+    "lint": "biome lint index.ts lib test biome.json",
+    "lint:fix": "biome check --apply index.ts lib test biome.json",
     "prepublishOnly": "npm run build:release"
   },
   "devDependencies": {
-    "@types/node": "^20.8.4",
-    "@typescript-eslint/eslint-plugin": "^6.7.2",
-    "@typescript-eslint/parser": "^6.7.2",
-    "@vitest/coverage-v8": "^0.34.6",
+    "@biomejs/biome": "^1.5.3",
+    "@types/node": "^20.11.16",
+    "@vitest/coverage-v8": "^1.2.2",
     "del-cli": "^5.0.0",
-    "eslint": "^8.51.0",
-    "eslint-config-prettier": "^9.0.0",
-    "eslint-plugin-import": "^2.28.1",
-    "eslint-plugin-prettier": "^5.0.0",
-    "eslint-plugin-vitest": "^0.3.2",
-    "prettier": "^3.0.3",
-    "typescript": "^5.2.2",
-    "vitest": "^0.34.6"
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.2"
   },
   "engines": {
     "node": ">=16"
