@@ -1,5 +1,5 @@
 import type { AwilixContainer } from 'awilix'
-import { asClass, Lifetime } from 'awilix'
+import { Lifetime, asClass } from 'awilix'
 import type { Resolver } from 'awilix/lib/resolvers'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
