@@ -50,6 +50,7 @@ const awilixManager = new AwilixManager({
   diContainer,
   asyncInit: true,
   asyncDispose: true,
+  strictBooleanEnforced: true,  
 })
 await awilixManager.executeInit() // this will execute eagerInject and asyncInit
 await awilixManager.executeDispose() // this will execute asyncDispose
@@ -96,10 +97,13 @@ const awilixManager = new AwilixManager({
   diContainer,
   asyncInit: true,
   asyncDispose: true,
+  strictBooleanEnforced: true,    
 })
 await awilixManager.executeInit() // this will not execute asyncInit, because consumer is disabled
 await awilixManager.executeDispose() // this will not execute asyncDispose, because consumer is disabled
 ```
+
+Note that passing `undefined` or `null` as a value for the `enabled` parameter counts as a default, which is `true`. That may lead to hard-to-debug errors, as it may be erroneously assumed that passing falsy value should equal to passing `false`. In order to prevent this, it is recommended to set `strictBooleanEnforced` flag to `true`, which would throw an error if a non-boolean value is explicitly set to the `enabled` field. In future semver major release this will become a default behaviour.
 
 ## Fetching dependencies based on tags
 

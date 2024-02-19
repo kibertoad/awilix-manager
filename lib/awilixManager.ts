@@ -18,6 +18,7 @@ export type AwilixManagerConfig = {
   asyncInit?: boolean
   asyncDispose?: boolean
   eagerInject?: boolean
+  strictBooleanEnforced?: boolean
 }
 
 export class AwilixManager {
@@ -25,6 +26,16 @@ export class AwilixManager {
 
   constructor(config: AwilixManagerConfig) {
     this.config = config
+    if (config.strictBooleanEnforced) {
+      for (const entry of Object.entries(config.diContainer.registrations)) {
+        const [dependencyName, config] = entry
+        if ('enabled' in config && config.enabled !== true && config.enabled !== false) {
+          throw new Error(
+            `Invalid config for ${dependencyName}. "enabled" field can only be set to true or false, or omitted`,
+          )
+        }
+      }
+    }
   }
 
   async executeInit() {
