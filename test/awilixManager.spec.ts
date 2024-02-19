@@ -83,6 +83,64 @@ class InitSetClass {
 }
 
 describe('awilixManager', () => {
+  describe('constructor', () => {
+    it('throws an error if strictBooleanEnforced is set and undefined is passed', () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          enabled: undefined,
+        }),
+      )
+      expect(
+        () =>
+          new AwilixManager({
+            diContainer,
+            strictBooleanEnforced: true,
+          }),
+      ).toThrow(
+        /Invalid config for dependency1. "enabled" field can only be set to true or false, or omitted/,
+      )
+    })
+    it('does not throw an error if strictBooleanEnforced is not set and undefined is passed', () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          enabled: undefined,
+        }),
+      )
+      new AwilixManager({
+        diContainer,
+      })
+    })
+    it('does not throw an error if strictBooleanEnforced is set and no undefined is passed', () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          enabled: true,
+        }),
+      )
+      new AwilixManager({
+        diContainer,
+        strictBooleanEnforced: true,
+      })
+    })
+  })
+
   describe('asyncInit', () => {
     it('execute asyncInit on registered dependencies', async () => {
       const diContainer = createContainer({
