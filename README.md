@@ -43,6 +43,8 @@ diContainer.register(
     asyncInit: 'init',
     asyncDispose: 'dispose',
     eagerInject: true, // this will be constructed and cached immediately. Redundant for resolves with `asyncInit` parameter set, as that is always resolved eagerly. If a string is passed, then additional synchronous method will be invoked in addition to constructor on injection.
+    preventRepeatedInits: true, // Unless this is set to false, awilix-manager will ignore `executeInit()` executed after the first one, until `executeDispose` is executed.
+    preventDisposeWithoutInit: false, // If this is set to true, awilix-manager will ignore `executeDispose()` executed before `executeInit()` is executed.
   }),
 )
 
