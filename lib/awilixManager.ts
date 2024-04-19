@@ -165,11 +165,7 @@ export async function asyncDispose(diContainer: AwilixContainer) {
       await resolvedValue.asyncDispose()
       continue
     }
-
-    // assume it's a string
-    {
-      // @ts-ignore
-      await resolvedValue[asyncDispose]()
-    }
+    // @ts-ignore
+    await resolvedValue[asyncDispose]()
   }
 }
