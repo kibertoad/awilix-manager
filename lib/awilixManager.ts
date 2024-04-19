@@ -19,13 +19,17 @@ export type AwilixManagerConfig = {
   asyncDispose?: boolean
   eagerInject?: boolean
   strictBooleanEnforced?: boolean
+  preventRepeatedInits?: boolean
+  preventDisposeWithoutInit?: boolean
 }
 
 export class AwilixManager {
   public readonly config: AwilixManagerConfig
+  private isInitted: boolean
 
   constructor(config: AwilixManagerConfig) {
     this.config = config
+    this.isInitted = false
     if (config.strictBooleanEnforced) {
       for (const entry of Object.entries(config.diContainer.registrations)) {
         const [dependencyName, config] = entry
@@ -39,6 +43,10 @@ export class AwilixManager {
   }
 
   async executeInit() {
+    if (this.config.preventRepeatedInits !== false && this.isInitted) {
+      return
+    }
+
     if (this.config.eagerInject) {
       eagerInject(this.config.diContainer)
     }
@@ -46,10 +54,18 @@ export class AwilixManager {
     if (this.config.asyncInit) {
       await asyncInit(this.config.diContainer)
     }
+
+    this.isInitted = true
   }
 
-  async executeDispose() {
-    await asyncDispose(this.config.diContainer)
+  executeDispose() {
+    if (this.config.preventDisposeWithoutInit && !this.isInitted) {
+      return Promise.resolve()
+    }
+
+    return asyncDispose(this.config.diContainer).then(() => {
+      this.isInitted = false
+    })
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

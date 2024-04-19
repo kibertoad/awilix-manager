@@ -1,13 +1,21 @@
 import { asClass, createContainer } from 'awilix'
 import { describe, expect, it } from 'vitest'
 
-import {
-  AwilixManager,
-  asyncDispose,
-  asyncInit,
-  eagerInject,
-  getWithTags,
-} from '../lib/awilixManager'
+import { AwilixManager, asyncDispose, asyncInit, getWithTags } from '../lib/awilixManager'
+
+class AsyncInitCounterClass {
+  public counter = 0
+
+  asyncInit(dependencies: any) {
+    return Promise.resolve().then(() => {
+      this.counter++
+    })
+  }
+
+  asyncDispose() {
+    this.counter--
+  }
+}
 
 class AsyncInitClass {
   isInitted = false
@@ -396,6 +404,55 @@ describe('awilixManager', () => {
 
       expect(isInittedGlobal).toBe(true)
     })
+
+    it('skips asyncInit when executed multiple times in a row', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'counter',
+        asClass(AsyncInitCounterClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+      })
+      await manager.executeInit()
+      await manager.executeInit()
+
+      const { counter } = diContainer.cradle
+
+      expect(counter.counter).toBe(1)
+    })
+
+    it('executes asyncInit when executed multiple times in a row, if check is disabled', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'counter',
+        asClass(AsyncInitCounterClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        preventRepeatedInits: false,
+      })
+      await manager.executeInit()
+      await manager.executeInit()
+
+      const { counter } = diContainer.cradle
+
+      expect(counter.counter).toBe(2)
+    })
   })
 
   describe('asyncDispose', () => {
@@ -611,6 +668,87 @@ describe('awilixManager', () => {
       const { dependency1, dependency2 } = diContainer.cradle
 
       expect(isDisposedGlobal).toBe(true)
+    })
+
+    it('executes asyncDispose when executed multiple times in a row, if check is disabled', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'counter',
+        asClass(AsyncInitCounterClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncDispose: true,
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        preventRepeatedInits: false,
+      })
+      await manager.executeInit()
+      await manager.executeDispose()
+      await manager.executeDispose()
+
+      const { counter } = diContainer.cradle
+
+      expect(counter.counter).toBe(-1)
+    })
+
+    it('prevents executing asyncDispose when executed multiple times in a row, if check is enabled', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'counter',
+        asClass(AsyncInitCounterClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncDispose: true,
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        preventRepeatedInits: false,
+        preventDisposeWithoutInit: true,
+      })
+      await manager.executeInit()
+      await manager.executeDispose()
+      await manager.executeDispose()
+
+      const { counter } = diContainer.cradle
+
+      expect(counter.counter).toBe(0)
+    })
+
+    it('prevents executing asyncDispose when executed without init, if check is enabled', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'counter',
+        asClass(AsyncInitCounterClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncDispose: true,
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        preventRepeatedInits: false,
+        preventDisposeWithoutInit: true,
+      })
+      await manager.executeDispose()
+
+      const { counter } = diContainer.cradle
+
+      expect(counter.counter).toBe(0)
     })
   })
 
