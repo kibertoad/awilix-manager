@@ -29,10 +29,6 @@ export type AwilixManagerConfig = {
   strictBooleanEnforced?: boolean
 }
 
-export type AwilixResolverRecord<TDependencies> = {
-  [Key in keyof TDependencies]: Resolver<TDependencies[Key]>
-}
-
 export function asMockClass<T = object>(
   Type: unknown,
   opts?: BuildResolverOptions<T>,
