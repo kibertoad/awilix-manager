@@ -1,8 +1,11 @@
 import { asClass, createContainer } from 'awilix'
 import { describe, expect, it } from 'vitest'
 
+import type { Resolver } from 'awilix/lib/resolvers'
 import {
   AwilixManager,
+  type ResolvedDependencies,
+  asMockClass,
   asyncDispose,
   asyncInit,
   eagerInject,
@@ -81,6 +84,30 @@ class InitSetClass {
     isInittedCustom = true
   }
 }
+
+describe('asMockClass', () => {
+  it('Supports passing a mock instance that does not fully implement the real class', () => {
+    type DiContainerType = {
+      asyncInitClass: AsyncInitClass
+      asyncInitClass2: AsyncInitClass
+    }
+    const diContainer = createContainer<DiContainerType>({
+      injectionMode: 'PROXY',
+    })
+    const diConfiguration: ResolvedDependencies<DiContainerType> = {
+      asyncInitClass: asClass(AsyncInitClass),
+      asyncInitClass2: asMockClass(AsyncDisposeClass),
+    }
+
+    for (const [dependencyKey, dependencyValue] of Object.entries(diConfiguration)) {
+      diContainer.register(dependencyKey, dependencyValue as Resolver<unknown>)
+    }
+
+    const { asyncInitClass, asyncInitClass2 } = diContainer.cradle
+    expect(asyncInitClass).toBeInstanceOf(AsyncInitClass)
+    expect(asyncInitClass2).toBeInstanceOf(AsyncDisposeClass)
+  })
+})
 
 describe('awilixManager', () => {
   describe('constructor', () => {

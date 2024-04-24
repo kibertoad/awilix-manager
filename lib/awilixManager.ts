@@ -1,4 +1,12 @@
-import type { AwilixContainer } from 'awilix'
+import {
+  type AwilixContainer,
+  type BuildResolver,
+  type BuildResolverOptions,
+  type Constructor,
+  type DisposableResolver,
+  asClass,
+} from 'awilix'
+import type { Resolver } from 'awilix/lib/resolvers'
 
 declare module 'awilix' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -19,6 +27,17 @@ export type AwilixManagerConfig = {
   asyncDispose?: boolean
   eagerInject?: boolean
   strictBooleanEnforced?: boolean
+}
+
+export type ResolvedDependencies<TDependencies> = {
+  [Key in keyof TDependencies]: Resolver<TDependencies[Key]>
+}
+
+export function asMockClass<T = object>(
+  Type: unknown,
+  opts?: BuildResolverOptions<T>,
+): BuildResolver<T> & DisposableResolver<T> {
+  return asClass(Type as Constructor<T>, opts)
 }
 
 export class AwilixManager {
@@ -149,11 +168,7 @@ export async function asyncDispose(diContainer: AwilixContainer) {
       await resolvedValue.asyncDispose()
       continue
     }
-
-    // assume it's a string
-    {
-      // @ts-ignore
-      await resolvedValue[asyncDispose]()
-    }
+    // @ts-ignore
+    await resolvedValue[asyncDispose]()
   }
 }

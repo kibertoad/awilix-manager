@@ -9,7 +9,7 @@
     "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
     "test": "vitest",
     "test:coverage": "npm test -- --coverage",
-    "lint": "biome lint index.ts lib test biome.json",
+    "lint": "biome lint index.ts lib test biome.json && tsc --project tsconfig.lint.json --noEmit",
     "lint:fix": "biome check --apply index.ts lib test biome.json",
     "prepublishOnly": "npm run build:release"
   },

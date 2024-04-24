@@ -11,10 +11,12 @@ export default defineConfig({
       exclude: ['lib/**/*.spec.ts'],
       reporter: ['text', 'lcov'],
       all: true,
-      statements: 100,
-      branches: 100,
-      functions: 100,
-      lines: 100,
+      thresholds: {
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
+      }
     },
   },
 })
