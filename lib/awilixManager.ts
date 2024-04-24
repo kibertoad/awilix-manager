@@ -5,7 +5,7 @@ declare module 'awilix' {
   interface ResolverOptions<T> {
     asyncInit?: boolean | string
     asyncInitPriority?: number // lower means it gets initted earlier
-    asyncDispose?: boolean | string | ((instance: T) => Promise<unknown>)
+    asyncDispose?: boolean | string | (<U extends T>(instance: U) => Promise<unknown>)
     asyncDisposePriority?: number // lower means it gets disposed earlier
     eagerInject?: boolean | string
     tags?: string[]
