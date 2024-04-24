@@ -91,13 +91,14 @@ describe('asMockClass', () => {
       asyncInitClass: AsyncInitClass
       asyncInitClass2: AsyncInitClass
     }
-    const diContainer = createContainer<DiContainerType>({
-      injectionMode: 'PROXY',
-    })
     const diConfiguration: ResolvedDependencies<DiContainerType> = {
       asyncInitClass: asClass(AsyncInitClass),
       asyncInitClass2: asMockClass(AsyncDisposeClass),
     }
+
+    const diContainer = createContainer<DiContainerType>({
+      injectionMode: 'PROXY',
+    })
 
     for (const [dependencyKey, dependencyValue] of Object.entries(diConfiguration)) {
       diContainer.register(dependencyKey, dependencyValue as Resolver<unknown>)

@@ -6,4 +6,4 @@ export {
   asyncDispose,
   getWithTags,
 } from './lib/awilixManager'
-export type { AwilixManagerConfig } from './lib/awilixManager'
+export type { AwilixManagerConfig, ResolvedDependencies } from './lib/awilixManager'
