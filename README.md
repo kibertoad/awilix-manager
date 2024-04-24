@@ -161,7 +161,7 @@ You can use `ResolvedDependencies` for defining your DI configuration as an obje
 type DiContainerType = {
     testClass: TestClass
 }
-const diConfiguration: ResolvedDependencies<DiContainerType> = {
+const diConfiguration: AwilixResolverRecord<DiContainerType> = {
     testClass: asClass(TestClass),
 }
 
@@ -183,7 +183,7 @@ type DiContainerType = {
     realClass: RealClass
     realClass2: RealClass
 }
-const diConfiguration: ResolvedDependencies<DiContainerType> = {
+const diConfiguration: AwilixResolverRecord<DiContainerType> = {
     realClass: asClass(RealClass),
     realClass2: asMockClass(FakeClass),
 }

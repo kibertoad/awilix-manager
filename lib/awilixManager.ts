@@ -29,7 +29,7 @@ export type AwilixManagerConfig = {
   strictBooleanEnforced?: boolean
 }
 
-export type ResolvedDependencies<TDependencies> = {
+export type AwilixResolverRecord<TDependencies> = {
   [Key in keyof TDependencies]: Resolver<TDependencies[Key]>
 }
 

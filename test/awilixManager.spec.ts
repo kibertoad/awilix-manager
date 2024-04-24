@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { Resolver } from 'awilix/lib/resolvers'
 import {
   AwilixManager,
-  type ResolvedDependencies,
+  type AwilixResolverRecord,
   asMockClass,
   asyncDispose,
   asyncInit,
@@ -91,7 +91,7 @@ describe('asMockClass', () => {
       asyncInitClass: AsyncInitClass
       asyncInitClass2: AsyncInitClass
     }
-    const diConfiguration: ResolvedDependencies<DiContainerType> = {
+    const diConfiguration: AwilixResolverRecord<DiContainerType> = {
       asyncInitClass: asClass(AsyncInitClass),
       asyncInitClass2: asMockClass(AsyncDisposeClass),
     }
