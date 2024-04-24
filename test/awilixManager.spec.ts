@@ -1,10 +1,9 @@
-import { asClass, createContainer } from 'awilix'
+import { type NameAndRegistrationPair, asClass, createContainer } from 'awilix'
 import { describe, expect, it } from 'vitest'
 
 import type { Resolver } from 'awilix/lib/resolvers'
 import {
   AwilixManager,
-  type AwilixResolverRecord,
   asMockClass,
   asyncDispose,
   asyncInit,
@@ -91,7 +90,7 @@ describe('asMockClass', () => {
       asyncInitClass: AsyncInitClass
       asyncInitClass2: AsyncInitClass
     }
-    const diConfiguration: AwilixResolverRecord<DiContainerType> = {
+    const diConfiguration: NameAndRegistrationPair<DiContainerType> = {
       asyncInitClass: asClass(AsyncInitClass),
       asyncInitClass2: asMockClass(AsyncDisposeClass),
     }

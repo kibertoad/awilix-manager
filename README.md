@@ -153,27 +153,6 @@ const result1 = awilixManager.getWithTags(diContainer, ['queue'])
 const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
 ```
 
-## Type-safe resolver definition
-
-You can use `ResolvedDependencies` for defining your DI configuration as an object:
-
-```ts
-type DiContainerType = {
-    testClass: TestClass
-}
-const diConfiguration: AwilixResolverRecord<DiContainerType> = {
-    testClass: asClass(TestClass),
-}
-
-const diContainer = createContainer<DiContainerType>({
-    injectionMode: 'PROXY',
-})
-
-for (const [dependencyKey, dependencyValue] of Object.entries(diConfiguration)) {
-    diContainer.register(dependencyKey, dependencyValue as Resolver<unknown>)
-}
-```
-
 ## Mocking dependencies
 
 Sometimes you may want to intentionally inject objects that do not fully conform to the type definition of an original class. For that you can use `asMockClass` resolver:
@@ -183,7 +162,7 @@ type DiContainerType = {
     realClass: RealClass
     realClass2: RealClass
 }
-const diConfiguration: AwilixResolverRecord<DiContainerType> = {
+const diConfiguration: NameAndRegistrationPair<DiContainerType> = {
     realClass: asClass(RealClass),
     realClass2: asMockClass(FakeClass),
 }
