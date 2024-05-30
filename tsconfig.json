@@ -1,28 +1,26 @@
 {
-  "compilerOptions": {
-    "outDir": "dist",
-    "module": "CommonJS",
-    "target": "ES2022",
-    "lib": ["ES2022", "dom"],
-    "sourceMap": false,
-    "declaration": true,
-    "declarationMap": false,
-    "types": ["node"],
-    "strict": true,
-    "moduleResolution": "node",
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true,
-    "strictNullChecks": true,
-    "importHelpers": false,
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true
-  },
-  "exclude": ["node_modules", "dist", "test/**/",
-    "vitest.config.mts"
-  ]
+	"compilerOptions": {
+		"outDir": "dist",
+		"module": "CommonJS",
+		"target": "ES2022",
+		"lib": ["ES2022", "dom"],
+		"sourceMap": false,
+		"declaration": true,
+		"declarationMap": false,
+		"types": ["node"],
+		"strict": true,
+		"moduleResolution": "node",
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"noFallthroughCasesInSwitch": true,
+		"strictNullChecks": true,
+		"importHelpers": false,
+		"skipLibCheck": true,
+		"baseUrl": ".",
+		"allowSyntheticDefaultImports": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true
+	},
+	"exclude": ["node_modules", "dist", "test/**/", "vitest.config.mts"]
 }

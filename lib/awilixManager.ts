@@ -6,10 +6,8 @@ import {
   type DisposableResolver,
   asClass,
 } from 'awilix'
-import type { Resolver } from 'awilix/lib/resolvers'
 
 declare module 'awilix' {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ResolverOptions<T> {
     asyncInit?: boolean | string
     asyncInitPriority?: number // lower means it gets initted earlier
@@ -67,9 +65,12 @@ export class AwilixManager {
     await asyncDispose(this.config.diContainer)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
     return getWithTags(diContainer, tags)
+  }
+
+  getByPredicate(predicate: (entity: any) => boolean): Record<string, any> {
+    return getByPredicate(this.config.diContainer, predicate)
   }
 }
 
@@ -91,42 +92,66 @@ export async function asyncInit(diContainer: AwilixContainer) {
       return key1.localeCompare(key2)
     })
 
-  for (const entry of dependenciesWithAsyncInit) {
-    const resolvedValue = diContainer.resolve(entry[0])
-    if (entry[1].asyncInit === true) {
+  for (const [key, description] of dependenciesWithAsyncInit) {
+    const resolvedValue = diContainer.resolve(key)
+    if (description.asyncInit === true) {
       await resolvedValue.asyncInit(diContainer.cradle)
     } else {
       // @ts-ignore
-      await resolvedValue[entry[1].asyncInit](diContainer.cradle)
+      await resolvedValue[description.asyncInit](diContainer.cradle)
     }
   }
 }
 
 export function eagerInject(diContainer: AwilixContainer) {
-  const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter((entry) => {
-    return entry[1].eagerInject && entry[1].enabled !== false
-  })
+  const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter(
+    ([_key, description]) => {
+      return description.eagerInject && description.enabled !== false
+    },
+  )
 
-  for (const entry of dependenciesWithEagerInject) {
-    const resolvedComponent = diContainer.resolve(entry[0])
-    if (typeof entry[1].eagerInject === 'string') {
-      resolvedComponent[entry[1].eagerInject]()
+  for (const [key, description] of dependenciesWithEagerInject) {
+    const resolvedComponent = diContainer.resolve(key)
+    if (typeof description.eagerInject === 'string') {
+      resolvedComponent[description.eagerInject]()
     }
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
-  const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
-    return (
-      entry[1].enabled !== false && tags.every((v) => entry[1].tags && entry[1].tags.includes(v))
-    )
-  })
+  const dependenciesWithTags = Object.entries(diContainer.registrations).filter(
+    ([_key, description]) => {
+      return (
+        description.enabled !== false &&
+        tags.every((v) => description.tags && description.tags.includes(v))
+      )
+    },
+  )
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resolvedComponents: Record<string, any> = {}
-  for (const entry of dependenciesWithTags) {
-    resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
+  for (const [key] of dependenciesWithTags) {
+    resolvedComponents[key] = diContainer.resolve(key)
+  }
+
+  return resolvedComponents
+}
+
+export function getByPredicate(
+  diContainer: AwilixContainer,
+  predicate: (entity: any) => boolean,
+): Record<string, any> {
+  const enabledDependencies = Object.entries(diContainer.registrations).filter(
+    ([_key, description]) => {
+      return description.enabled !== false
+    },
+  )
+
+  const resolvedComponents: Record<string, any> = {}
+  for (const [key] of enabledDependencies) {
+    const resolvedElement = diContainer.resolve(key)
+    if (predicate(resolvedElement)) {
+      resolvedComponents[key] = resolvedElement
+    }
   }
 
   return resolvedComponents
@@ -134,8 +159,8 @@ export function getWithTags(diContainer: AwilixContainer, tags: string[]): Recor
 
 export async function asyncDispose(diContainer: AwilixContainer) {
   const dependenciesWithAsyncDispose = Object.entries(diContainer.registrations)
-    .filter((entry) => {
-      return entry[1].asyncDispose && entry[1].enabled !== false
+    .filter(([_key, description]) => {
+      return description.asyncDispose && description.enabled !== false
     })
     .sort((entry1, entry2) => {
       const [key1, resolver1] = entry1
@@ -150,10 +175,10 @@ export async function asyncDispose(diContainer: AwilixContainer) {
       return key1.localeCompare(key2)
     })
 
-  for (const entry of dependenciesWithAsyncDispose) {
-    const resolvedValue = diContainer.resolve(entry[0])
+  for (const [key, description] of dependenciesWithAsyncDispose) {
+    const resolvedValue = diContainer.resolve(key)
 
-    const asyncDispose = entry[1].asyncDispose
+    const asyncDispose = description.asyncDispose
 
     if (typeof asyncDispose === 'function') {
       await asyncDispose(resolvedValue)

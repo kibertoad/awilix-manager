@@ -147,11 +147,59 @@ const awilixManager = new AwilixManager({
   asyncDispose: true,
 })
 
-// This will return dependency1 and dependency2
+// This will return a record with dependency1 and dependency2
 const result1 = awilixManager.getWithTags(diContainer, ['queue'])
-// This will return only dependency2
+// This will return a record with only dependency2
 const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
 ```
+
+## Fetching dependencies based on a predicate
+
+In some cases you may want to get dependencies based on whether they satisfy some condition.
+You can use `getByPredicate` method for that:
+
+```js
+import { AwilixManager } from 'awilix-manager'
+import { asClass, createContainer } from 'awilix'
+
+const diContainer = createContainer({
+  injectionMode: 'PROXY',
+})
+
+class QueueConsumerHighPriorityClass {
+}
+
+class QueueConsumerLowPriorityClass {
+}
+
+diContainer.register(
+  'dependency1',
+  asClass(QueueConsumerHighPriorityClass, {
+    lifetime: 'SINGLETON',
+    asyncInit: true,
+  }),
+)
+diContainer.register(
+  'dependency2',
+  asClass(QueueConsumerLowPriorityClass, {
+    lifetime: 'SINGLETON',
+    asyncInit: true,
+  }),
+)
+
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  asyncDispose: true,
+})
+
+// This will return a record with dependency1
+const result1 = awilixManager.getByPredicate((entry) => entry instanceof QueueConsumerHighPriorityClass)
+// This will return a record with dependency2
+const result2 = awilixManager.getByPredicate((entry) => entry instanceof QueueConsumerLowPriorityClass))
+```
+
+Note that this will resolve all non-disabled dependencies within the container, even the ones without eager injection enabled.
 
 ## Mocking dependencies
 

@@ -1,47 +1,37 @@
 {
-  "name": "awilix-manager",
-  "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
-  "version": "5.2.1",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
-    "test": "vitest",
-    "test:coverage": "npm test -- --coverage",
-    "lint": "biome lint index.ts lib test biome.json && tsc --project tsconfig.lint.json --noEmit",
-    "lint:fix": "biome check --apply index.ts lib test biome.json",
-    "prepublishOnly": "npm run build:release"
-  },
-  "peerDependencies": {
-    "awilix": ">=9.0.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.5.3",
-    "@types/node": "^20.11.16",
-    "@vitest/coverage-v8": "^1.2.2",
-    "del-cli": "^5.0.0",
-    "typescript": "^5.3.3",
-    "vitest": "^1.2.2"
-  },
-  "engines": {
-    "node": ">=16"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/kibertoad/awilix-manager.git"
-  },
-  "keywords": [
-    "init",
-    "async",
-    "eager",
-    "awilix",
-    "di"
-  ],
-  "homepage": "https://github.com/kibertoad/awilix-manager",
-  "files": [
-    "README.md",
-    "LICENSE",
-    "dist/*"
-  ]
+	"name": "awilix-manager",
+	"description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
+	"version": "5.2.1",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"scripts": {
+		"build": "tsc",
+		"build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
+		"test": "vitest",
+		"test:coverage": "npm test -- --coverage",
+		"lint": "biome check . && tsc --project tsconfig.lint.json --noEmit",
+		"lint:fix": "biome check --apply .",
+		"prepublishOnly": "npm run build:release"
+	},
+	"peerDependencies": {
+		"awilix": ">=9.0.0"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.7.3",
+		"@types/node": "^20.12.13",
+		"@vitest/coverage-v8": "^1.6.0",
+		"del-cli": "^5.1.0",
+		"typescript": "^5.4.5",
+		"vitest": "^1.6.0"
+	},
+	"engines": {
+		"node": ">=16"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/kibertoad/awilix-manager.git"
+	},
+	"keywords": ["init", "async", "eager", "awilix", "di"],
+	"homepage": "https://github.com/kibertoad/awilix-manager",
+	"files": ["README.md", "LICENSE", "dist/*"]
 }
