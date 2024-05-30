@@ -7,11 +7,14 @@ import {
   asMockClass,
   asyncDispose,
   asyncInit,
-  eagerInject,
+  getByPredicate,
   getWithTags,
 } from '../lib/awilixManager'
 
-class AsyncInitClass {
+class SuperClass1 {}
+class SuperClass2 {}
+
+class AsyncInitClass extends SuperClass1 {
   isInitted = false
   isUpdated = false
 
@@ -26,7 +29,7 @@ class AsyncInitClass {
   }
 }
 
-class AsyncDisposeClass {
+class AsyncDisposeClass extends SuperClass2 {
   isDisposed = false
 
   asyncDispose() {
@@ -164,6 +167,66 @@ describe('awilixManager', () => {
       new AwilixManager({
         diContainer,
         strictBooleanEnforced: true,
+      })
+    })
+  })
+
+  describe('getByPredicate', () => {
+    it('retrieves entries by predicate', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const awilixManager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        asyncDispose: true,
+      })
+
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+      diContainer.register(
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+      diContainer.register(
+        'dependency3',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+        }),
+      )
+      diContainer.register(
+        'dependency4',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          enabled: false,
+        }),
+      )
+
+      await awilixManager.executeInit()
+
+      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+      const superClass1Entries = awilixManager.getByPredicate(
+        (entry) => entry instanceof SuperClass1,
+      )
+      expect(superClass1Entries).toStrictEqual({
+        dependency1: dependency1,
+        dependency2: dependency2,
+      })
+
+      const superClass2Entries = getByPredicate(
+        diContainer,
+        (entry) => entry instanceof SuperClass2,
+      )
+      expect(superClass2Entries).toStrictEqual({
+        dependency3: dependency3,
       })
     })
   })

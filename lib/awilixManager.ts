@@ -6,10 +6,8 @@ import {
   type DisposableResolver,
   asClass,
 } from 'awilix'
-import type { Resolver } from 'awilix/lib/resolvers'
 
 declare module 'awilix' {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface ResolverOptions<T> {
     asyncInit?: boolean | string
     asyncInitPriority?: number // lower means it gets initted earlier
@@ -67,9 +65,12 @@ export class AwilixManager {
     await asyncDispose(this.config.diContainer)
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
     return getWithTags(diContainer, tags)
+  }
+
+  getByPredicate(predicate: (entity: any) => boolean): Record<string, any> {
+    return getByPredicate(this.config.diContainer, predicate)
   }
 }
 
@@ -115,7 +116,6 @@ export function eagerInject(diContainer: AwilixContainer) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
   const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
     return (
@@ -123,10 +123,28 @@ export function getWithTags(diContainer: AwilixContainer, tags: string[]): Recor
     )
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resolvedComponents: Record<string, any> = {}
   for (const entry of dependenciesWithTags) {
     resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
+  }
+
+  return resolvedComponents
+}
+
+export function getByPredicate(
+  diContainer: AwilixContainer,
+  predicate: (entity: any) => boolean,
+): Record<string, any> {
+  const enabledDependencies = Object.entries(diContainer.registrations).filter((entry) => {
+    return entry[1].enabled !== false
+  })
+
+  const resolvedComponents: Record<string, any> = {}
+  for (const entry of enabledDependencies) {
+    const resolvedElement = diContainer.resolve(entry[0])
+    if (predicate(resolvedElement)) {
+      resolvedComponents[entry[0]] = resolvedElement
+    }
   }
 
   return resolvedComponents
