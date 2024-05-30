@@ -92,40 +92,45 @@ export async function asyncInit(diContainer: AwilixContainer) {
       return key1.localeCompare(key2)
     })
 
-  for (const entry of dependenciesWithAsyncInit) {
-    const resolvedValue = diContainer.resolve(entry[0])
-    if (entry[1].asyncInit === true) {
+  for (const [key, description] of dependenciesWithAsyncInit) {
+    const resolvedValue = diContainer.resolve(key)
+    if (description.asyncInit === true) {
       await resolvedValue.asyncInit(diContainer.cradle)
     } else {
       // @ts-ignore
-      await resolvedValue[entry[1].asyncInit](diContainer.cradle)
+      await resolvedValue[description.asyncInit](diContainer.cradle)
     }
   }
 }
 
 export function eagerInject(diContainer: AwilixContainer) {
-  const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter((entry) => {
-    return entry[1].eagerInject && entry[1].enabled !== false
-  })
+  const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter(
+    ([_key, description]) => {
+      return description.eagerInject && description.enabled !== false
+    },
+  )
 
-  for (const entry of dependenciesWithEagerInject) {
-    const resolvedComponent = diContainer.resolve(entry[0])
-    if (typeof entry[1].eagerInject === 'string') {
-      resolvedComponent[entry[1].eagerInject]()
+  for (const [key, description] of dependenciesWithEagerInject) {
+    const resolvedComponent = diContainer.resolve(key)
+    if (typeof description.eagerInject === 'string') {
+      resolvedComponent[description.eagerInject]()
     }
   }
 }
 
 export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
-  const dependenciesWithTags = Object.entries(diContainer.registrations).filter((entry) => {
-    return (
-      entry[1].enabled !== false && tags.every((v) => entry[1].tags && entry[1].tags.includes(v))
-    )
-  })
+  const dependenciesWithTags = Object.entries(diContainer.registrations).filter(
+    ([_key, description]) => {
+      return (
+        description.enabled !== false &&
+        tags.every((v) => description.tags && description.tags.includes(v))
+      )
+    },
+  )
 
   const resolvedComponents: Record<string, any> = {}
-  for (const entry of dependenciesWithTags) {
-    resolvedComponents[entry[0]] = diContainer.resolve(entry[0])
+  for (const [key] of dependenciesWithTags) {
+    resolvedComponents[key] = diContainer.resolve(key)
   }
 
   return resolvedComponents
@@ -135,15 +140,17 @@ export function getByPredicate(
   diContainer: AwilixContainer,
   predicate: (entity: any) => boolean,
 ): Record<string, any> {
-  const enabledDependencies = Object.entries(diContainer.registrations).filter((entry) => {
-    return entry[1].enabled !== false
-  })
+  const enabledDependencies = Object.entries(diContainer.registrations).filter(
+    ([_key, description]) => {
+      return description.enabled !== false
+    },
+  )
 
   const resolvedComponents: Record<string, any> = {}
-  for (const entry of enabledDependencies) {
-    const resolvedElement = diContainer.resolve(entry[0])
+  for (const [key] of enabledDependencies) {
+    const resolvedElement = diContainer.resolve(key)
     if (predicate(resolvedElement)) {
-      resolvedComponents[entry[0]] = resolvedElement
+      resolvedComponents[key] = resolvedElement
     }
   }
 
@@ -152,8 +159,8 @@ export function getByPredicate(
 
 export async function asyncDispose(diContainer: AwilixContainer) {
   const dependenciesWithAsyncDispose = Object.entries(diContainer.registrations)
-    .filter((entry) => {
-      return entry[1].asyncDispose && entry[1].enabled !== false
+    .filter(([_key, description]) => {
+      return description.asyncDispose && description.enabled !== false
     })
     .sort((entry1, entry2) => {
       const [key1, resolver1] = entry1
@@ -168,10 +175,10 @@ export async function asyncDispose(diContainer: AwilixContainer) {
       return key1.localeCompare(key2)
     })
 
-  for (const entry of dependenciesWithAsyncDispose) {
-    const resolvedValue = diContainer.resolve(entry[0])
+  for (const [key, description] of dependenciesWithAsyncDispose) {
+    const resolvedValue = diContainer.resolve(key)
 
-    const asyncDispose = entry[1].asyncDispose
+    const asyncDispose = description.asyncDispose
 
     if (typeof asyncDispose === 'function') {
       await asyncDispose(resolvedValue)

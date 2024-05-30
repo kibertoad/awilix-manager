@@ -147,9 +147,9 @@ const awilixManager = new AwilixManager({
   asyncDispose: true,
 })
 
-// This will return dependency1 and dependency2
+// This will return a record with dependency1 and dependency2
 const result1 = awilixManager.getWithTags(diContainer, ['queue'])
-// This will return only dependency2
+// This will return a record with only dependency2
 const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
 ```
 
@@ -193,9 +193,9 @@ const awilixManager = new AwilixManager({
   asyncDispose: true,
 })
 
-// This will return dependency1
+// This will return a record with dependency1
 const result1 = awilixManager.getByPredicate((entry) => entry instanceof QueueConsumerHighPriorityClass)
-// This will return dependency2
+// This will return a record with dependency2
 const result2 = awilixManager.getByPredicate((entry) => entry instanceof QueueConsumerLowPriorityClass))
 ```
 
