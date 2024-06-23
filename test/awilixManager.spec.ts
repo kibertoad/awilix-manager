@@ -5,6 +5,7 @@ import type { Resolver } from 'awilix/lib/resolvers'
 import {
   AwilixManager,
   asMockClass,
+  asMockFunction,
   asyncDispose,
   asyncInit,
   getByPredicate,
@@ -96,6 +97,33 @@ describe('asMockClass', () => {
     const diConfiguration: NameAndRegistrationPair<DiContainerType> = {
       asyncInitClass: asClass(AsyncInitClass),
       asyncInitClass2: asMockClass(AsyncDisposeClass),
+    }
+
+    const diContainer = createContainer<DiContainerType>({
+      injectionMode: 'PROXY',
+    })
+
+    for (const [dependencyKey, dependencyValue] of Object.entries(diConfiguration)) {
+      diContainer.register(dependencyKey, dependencyValue as Resolver<unknown>)
+    }
+
+    const { asyncInitClass, asyncInitClass2 } = diContainer.cradle
+    expect(asyncInitClass).toBeInstanceOf(AsyncInitClass)
+    expect(asyncInitClass2).toBeInstanceOf(AsyncDisposeClass)
+  })
+})
+
+describe('asMockFunction', () => {
+  it('Supports passing a mock instance that does not fully implement the real class', () => {
+    type DiContainerType = {
+      asyncInitClass: AsyncInitClass
+      asyncInitClass2: AsyncInitClass
+    }
+    const diConfiguration: NameAndRegistrationPair<DiContainerType> = {
+      asyncInitClass: asClass(AsyncInitClass),
+      asyncInitClass2: asMockFunction(() => {
+        return new AsyncDisposeClass()
+      }),
     }
 
     const diContainer = createContainer<DiContainerType>({
