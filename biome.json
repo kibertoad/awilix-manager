@@ -1,35 +1,22 @@
 {
-	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-	"files": {
-		"ignore": ["coverage", "dist", "node_modules"]
-	},
-	"javascript": {
-		"formatter": {
-			"arrowParentheses": "always",
-			"indentStyle": "space",
-			"semicolons": "asNeeded",
-			"trailingComma": "all",
-			"lineWidth": 100,
-			"quoteStyle": "single"
-		}
-	},
-	"linter": {
-		"rules": {
-			"style": {
-				"recommended": true,
-				"noNonNullAssertion": "off"
-			},
-			"correctness": {
-				"recommended": true
-			},
-			"suspicious": {
-				"recommended": true,
-				"noExplicitAny": "off"
-			},
-			"complexity": {
-				"recommended": true,
-				"useOptionalChain": "off"
-			}
-		}
-	}
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": ["./node_modules/@kibertoad/biome-config/configs/biome-package.json"],
+  "overrides": [
+    {
+      "include": ["**/*.ts"],
+      "linter": {
+        "rules": {
+          "performance": {
+            "noBarrelFile": "off"
+          },
+          "complexity": {
+            "useOptionalChain": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
 }

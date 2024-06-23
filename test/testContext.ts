@@ -1,6 +1,6 @@
-import type { AwilixContainer } from 'awilix'
+import type { AwilixContainer, NameAndRegistrationPair } from 'awilix'
 import { Lifetime, asClass } from 'awilix'
-import type { Resolver } from 'awilix/lib/resolvers'
+import '../lib/awilixManager'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }
 
@@ -27,7 +27,7 @@ export function registerDependencies(
   }
 }
 
-type DiConfig = Record<keyof Dependencies, Resolver<any>>
+type DiConfig = NameAndRegistrationPair<Dependencies>
 
 export interface Dependencies {
   module: SomeModule

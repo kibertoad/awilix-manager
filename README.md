@@ -203,7 +203,7 @@ Note that this will resolve all non-disabled dependencies within the container, 
 
 ## Mocking dependencies
 
-Sometimes you may want to intentionally inject objects that do not fully conform to the type definition of an original class. For that you can use `asMockClass` resolver:
+Sometimes you may want to intentionally inject objects that do not fully conform to the type definition of an original class. For that you can use `asMockClass` or `asMockFunction` resolvers:
 
 ```ts
 type DiContainerType = {

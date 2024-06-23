@@ -338,7 +338,7 @@ describe('awilixManager', () => {
       expect(expectedItemNotFound).toStrictEqual({})
     })
 
-    it('execute awilixManager.getWithTags on registered dependencies with valid tags', async () => {
+    it('execute awilixManager.getWithTags on registered dependencies with valid tags', () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
       })
@@ -383,7 +383,7 @@ describe('awilixManager', () => {
       })
     })
 
-    it('does bit execute asyncInit on registered dependencies if disabled', async () => {
+    it('does not execute asyncInit on registered dependencies if disabled', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
       })
@@ -449,7 +449,7 @@ describe('awilixManager', () => {
       })
       await manager.executeInit()
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isInittedGlobal).toBe(true)
     })
@@ -482,7 +482,7 @@ describe('awilixManager', () => {
       })
       await manager.executeInit()
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isInittedGlobal).toBe(true)
     })
@@ -534,8 +534,9 @@ describe('awilixManager', () => {
         'dependency1',
         asClass(AsyncDisposeClass, {
           lifetime: 'SINGLETON',
-          asyncDispose: async (instance) => {
+          asyncDispose: (instance) => {
             instance.isDisposed = true
+            return Promise.resolve()
           },
         }),
       )
@@ -669,7 +670,7 @@ describe('awilixManager', () => {
 
       await asyncDispose(diContainer)
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isDisposedGlobal).toBe(true)
     })
@@ -698,7 +699,7 @@ describe('awilixManager', () => {
 
       await asyncDispose(diContainer)
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isDisposedGlobal).toBe(true)
     })
