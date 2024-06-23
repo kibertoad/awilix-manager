@@ -5,6 +5,7 @@ import type { Resolver } from 'awilix/lib/resolvers'
 import {
   AwilixManager,
   asMockClass,
+  asMockFunction,
   asyncDispose,
   asyncInit,
   getByPredicate,
@@ -96,6 +97,33 @@ describe('asMockClass', () => {
     const diConfiguration: NameAndRegistrationPair<DiContainerType> = {
       asyncInitClass: asClass(AsyncInitClass),
       asyncInitClass2: asMockClass(AsyncDisposeClass),
+    }
+
+    const diContainer = createContainer<DiContainerType>({
+      injectionMode: 'PROXY',
+    })
+
+    for (const [dependencyKey, dependencyValue] of Object.entries(diConfiguration)) {
+      diContainer.register(dependencyKey, dependencyValue as Resolver<unknown>)
+    }
+
+    const { asyncInitClass, asyncInitClass2 } = diContainer.cradle
+    expect(asyncInitClass).toBeInstanceOf(AsyncInitClass)
+    expect(asyncInitClass2).toBeInstanceOf(AsyncDisposeClass)
+  })
+})
+
+describe('asMockFunction', () => {
+  it('Supports passing a mock instance that does not fully implement the real class', () => {
+    type DiContainerType = {
+      asyncInitClass: AsyncInitClass
+      asyncInitClass2: AsyncInitClass
+    }
+    const diConfiguration: NameAndRegistrationPair<DiContainerType> = {
+      asyncInitClass: asClass(AsyncInitClass),
+      asyncInitClass2: asMockFunction(() => {
+        return new AsyncDisposeClass()
+      }),
     }
 
     const diContainer = createContainer<DiContainerType>({
@@ -338,7 +366,7 @@ describe('awilixManager', () => {
       expect(expectedItemNotFound).toStrictEqual({})
     })
 
-    it('execute awilixManager.getWithTags on registered dependencies with valid tags', async () => {
+    it('execute awilixManager.getWithTags on registered dependencies with valid tags', () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
       })
@@ -383,7 +411,7 @@ describe('awilixManager', () => {
       })
     })
 
-    it('does bit execute asyncInit on registered dependencies if disabled', async () => {
+    it('does not execute asyncInit on registered dependencies if disabled', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
       })
@@ -449,7 +477,7 @@ describe('awilixManager', () => {
       })
       await manager.executeInit()
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isInittedGlobal).toBe(true)
     })
@@ -482,7 +510,7 @@ describe('awilixManager', () => {
       })
       await manager.executeInit()
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isInittedGlobal).toBe(true)
     })
@@ -534,8 +562,9 @@ describe('awilixManager', () => {
         'dependency1',
         asClass(AsyncDisposeClass, {
           lifetime: 'SINGLETON',
-          asyncDispose: async (instance) => {
+          asyncDispose: (instance) => {
             instance.isDisposed = true
+            return Promise.resolve()
           },
         }),
       )
@@ -669,7 +698,7 @@ describe('awilixManager', () => {
 
       await asyncDispose(diContainer)
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isDisposedGlobal).toBe(true)
     })
@@ -698,7 +727,7 @@ describe('awilixManager', () => {
 
       await asyncDispose(diContainer)
 
-      const { dependency1, dependency2 } = diContainer.cradle
+      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
       expect(isDisposedGlobal).toBe(true)
     })
