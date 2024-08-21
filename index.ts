@@ -2,6 +2,8 @@ export {
   AwilixManager,
   asMockClass,
   asMockFunction,
+  asMockValue,
+  getByPredicate,
   eagerInject,
   asyncInit,
   asyncDispose,
