@@ -6,8 +6,10 @@ import {
   type DisposableResolver,
   asClass,
   asFunction,
+  asValue,
 } from 'awilix'
 import type { FunctionReturning } from 'awilix/lib/container'
+import type { Resolver } from 'awilix/lib/resolvers'
 
 declare module 'awilix' {
   interface ResolverOptions<T> {
@@ -34,6 +36,10 @@ export function asMockClass<T = object>(
   opts?: BuildResolverOptions<T>,
 ): BuildResolver<T> & DisposableResolver<T> {
   return asClass(Type as Constructor<T>, opts)
+}
+
+export function asMockValue<T = object>(value: unknown): Resolver<T> {
+  return asValue(value as T)
 }
 
 export function asMockFunction<T = object>(
