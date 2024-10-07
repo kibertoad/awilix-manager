@@ -21,7 +21,7 @@
     "@kibertoad/biome-config": "^1.2.0",
     "@types/node": "^20.14.8",
     "@vitest/coverage-v8": "^1.6.0",
-    "del-cli": "^5.1.0",
+    "del-cli": "^6.0.0",
     "typescript": "^5.5.2",
     "vitest": "^1.6.0"
   },
