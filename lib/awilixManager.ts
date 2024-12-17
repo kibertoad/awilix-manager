@@ -110,6 +110,9 @@ export async function asyncInit(diContainer: AwilixContainer) {
   for (const [key, description] of dependenciesWithAsyncInit) {
     const resolvedValue = diContainer.resolve(key)
     if (description.asyncInit === true) {
+      if (!('asyncInit' in resolvedValue)) {
+        throw new Error(`Method asyncInit does not exist on dependency ${key}`)
+      }
       await resolvedValue.asyncInit(diContainer.cradle)
     } else {
       // @ts-expect-error

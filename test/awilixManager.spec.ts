@@ -337,6 +337,23 @@ describe('awilixManager', () => {
       )
     })
 
+    it('throws a clear error when default asyncInit method does not exist', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+
+      await expect(() => asyncInit(diContainer)).rejects.toThrowError(
+        'Method asyncInit does not exist on dependency dependency1',
+      )
+    })
+
     it('execute asyncInit on registered dependencies and use dependencies from cradle', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
