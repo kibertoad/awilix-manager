@@ -112,7 +112,13 @@ export async function asyncInit(diContainer: AwilixContainer) {
     if (description.asyncInit === true) {
       await resolvedValue.asyncInit(diContainer.cradle)
     } else {
-      // @ts-ignore
+      // @ts-expect-error
+      if (!(description.asyncInit in resolvedValue)) {
+        throw new Error(
+          `Method ${description.asyncInit} for asyncInit does not exist on dependency ${key}`,
+        )
+      }
+      // @ts-expect-error
       await resolvedValue[description.asyncInit](diContainer.cradle)
     }
   }
