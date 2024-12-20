@@ -1,7 +1,7 @@
 {
   "name": "awilix-manager",
   "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
-  "version": "5.5.0",
+  "version": "5.6.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
