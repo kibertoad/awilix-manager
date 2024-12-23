@@ -148,9 +148,9 @@ const awilixManager = new AwilixManager({
 })
 
 // This will return a record with dependency1 and dependency2
-const result1 = awilixManager.getWithTags(diContainer, ['queue'])
+const result1 = awilixManager.getWithTags(['queue'])
 // This will return a record with only dependency2
-const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
+const result2 = awilixManager.getWithTags(['queue', 'low-priority'])
 ```
 
 ## Fetching dependencies based on a predicate

@@ -459,13 +459,13 @@ describe('awilixManager', () => {
       })
 
       const { dependency1, dependency2 } = diContainer.cradle
-      const result1 = awilixManager.getWithTags(diContainer, ['queue'])
+      const result1 = awilixManager.getWithTags(['queue'])
       expect(result1).toStrictEqual({
         dependency1: dependency1,
         dependency2: dependency2,
       })
 
-      const result2 = awilixManager.getWithTags(diContainer, ['queue', 'low-priority'])
+      const result2 = awilixManager.getWithTags(['queue', 'low-priority'])
       expect(result2).toStrictEqual({
         dependency2: dependency2,
       })
