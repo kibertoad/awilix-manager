@@ -80,8 +80,8 @@ export class AwilixManager {
     await asyncDispose(this.config.diContainer)
   }
 
-  getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
-    return getWithTags(diContainer, tags)
+  getWithTags(tags: string[]): Record<string, any> {
+    return getWithTags(this.config.diContainer, tags)
   }
 
   getByPredicate(predicate: (entity: any) => boolean): Record<string, any> {
