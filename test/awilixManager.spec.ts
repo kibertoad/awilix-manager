@@ -320,6 +320,48 @@ describe('awilixManager', () => {
       expect(dependency3.isInitted).toBe(true)
     })
 
+    it('supports function as asyncInit', async () => {
+      type DiContainerType = {
+        dependency1: AsyncInitClass
+        dependency2: AsyncInitClass
+        dependency3: AsyncInitClass
+      }
+
+      const diContainer = createContainer<DiContainerType>({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+      diContainer.register(
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+        }),
+      )
+      diContainer.register(
+        'dependency3',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: (instance, _diContainer) => {
+            return instance.asyncInit(instance)
+          },
+        }),
+      )
+
+      await asyncInit(diContainer)
+
+      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+      expect(dependency1.isInitted).toBe(true)
+      expect(dependency2.isInitted).toBe(false)
+      expect(dependency3.isInitted).toBe(true)
+    })
+
     it('throws a clear error when asyncInit method does not exist', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
