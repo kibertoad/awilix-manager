@@ -124,7 +124,7 @@ export async function asyncInit(diContainer: AwilixContainer) {
 
     // use function asyncInit
     if (typeof description.asyncInit === 'function') {
-      await description.asyncInit(resolvedValue, diContainer.cradle)
+      await description.asyncInit(resolvedValue, diContainer)
       continue
     }
 
