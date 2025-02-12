@@ -13,7 +13,10 @@ import type { Resolver } from 'awilix/lib/resolvers'
 
 declare module 'awilix' {
   interface ResolverOptions<T> {
-    asyncInit?: boolean | string
+    asyncInit?:
+      | boolean
+      | string
+      | (<U extends T>(instance: U, diContainer: AwilixContainer) => Promise<unknown>)
     asyncInitPriority?: number // lower means it gets initted earlier
     asyncDispose?: boolean | string | (<U extends T>(instance: U) => Promise<unknown>)
     asyncDisposePriority?: number // lower means it gets disposed earlier
@@ -109,21 +112,30 @@ export async function asyncInit(diContainer: AwilixContainer) {
 
   for (const [key, description] of dependenciesWithAsyncInit) {
     const resolvedValue = diContainer.resolve(key)
+
+    // use default asyncInit method
     if (description.asyncInit === true) {
       if (!('asyncInit' in resolvedValue)) {
         throw new Error(`Method asyncInit does not exist on dependency ${key}`)
       }
       await resolvedValue.asyncInit(diContainer.cradle)
-    } else {
-      // @ts-expect-error
-      if (!(description.asyncInit in resolvedValue)) {
-        throw new Error(
-          `Method ${description.asyncInit} for asyncInit does not exist on dependency ${key}`,
-        )
-      }
-      // @ts-expect-error
-      await resolvedValue[description.asyncInit](diContainer.cradle)
+      continue
     }
+
+    // use function asyncInit
+    if (typeof description.asyncInit === 'function') {
+      await description.asyncInit(resolvedValue, diContainer.cradle)
+      continue
+    }
+
+    // @ts-expect-error
+    if (!(description.asyncInit in resolvedValue)) {
+      throw new Error(
+        `Method ${description.asyncInit} for asyncInit does not exist on dependency ${key}`,
+      )
+    }
+    // @ts-expect-error
+    await resolvedValue[description.asyncInit](diContainer.cradle)
   }
 }
 
