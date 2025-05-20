@@ -19,14 +19,14 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@kibertoad/biome-config": "^1.2.1",
-    "@types/node": "^20.17.10",
-    "@vitest/coverage-v8": "0.34.6",
+    "@types/node": "^22.15.20",
+    "@vitest/coverage-v8": "^3.1.4",
     "del-cli": "^6.0.0",
-    "typescript": "^5.7.2",
-    "vitest": "0.34.6"
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
