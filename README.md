@@ -105,6 +105,73 @@ await awilixManager.executeDispose() // this will not execute asyncDispose, beca
 
 Note that passing `undefined` or `null` as a value for the `enabled` parameter counts as a default, which is `true`. That may lead to hard-to-debug errors, as it may be erroneously assumed that passing falsy value should equal to passing `false`. In order to prevent this, it is recommended to set `strictBooleanEnforced` flag to `true`, which would throw an error if a non-boolean value is explicitly set to the `enabled` field. In future semver major release this will become a default behaviour.
 
+## Debug logging
+
+You can enable debug logging to see when each dependency starts and finishes initializing during `asyncInit`. This is especially helpful when your application is timing out during the awilix init phase, as it allows you to identify which dependency is hanging or taking too long to initialize.
+
+```js
+import { AwilixManager } from 'awilix-manager'
+import { asClass, createContainer } from 'awilix'
+
+const diContainer = createContainer({
+  injectionMode: 'PROXY',
+})
+
+diContainer.register(
+  'dependency1',
+  asClass(MyClass, {
+    lifetime: 'SINGLETON',
+    asyncInit: true,
+    asyncInitPriority: 1,
+  }),
+)
+
+diContainer.register(
+  'dependency2',
+  asClass(AnotherClass, {
+    lifetime: 'SINGLETON',
+    asyncInit: true,
+    asyncInitPriority: 2,
+  }),
+)
+
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  enableDebugLogging: true, // enables debug logging
+  loggerFn: console.log, // optional, defaults to console.log
+})
+
+await awilixManager.executeInit()
+// Logs:
+// asyncInit: dependency1 - started
+// asyncInit: dependency1 - finished
+// asyncInit: dependency2 - started
+// asyncInit: dependency2 - finished
+```
+
+You can also provide a custom logger function:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  enableDebugLogging: true,
+  loggerFn: (message) => myLogger.debug(message),
+})
+```
+
+Debug logging is also available when using the `asyncInit` function directly:
+
+```js
+import { asyncInit } from 'awilix-manager'
+
+await asyncInit(diContainer, {
+  enableDebugLogging: true,
+  loggerFn: console.log,
+})
+```
+
 ## Fetching dependencies based on tags
 
 In some cases you may want to get dependencies based on a supplied list of tags. 

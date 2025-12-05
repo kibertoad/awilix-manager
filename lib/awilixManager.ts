@@ -26,12 +26,16 @@ declare module 'awilix' {
   }
 }
 
+export type Logger = (message: string) => void
+
 export type AwilixManagerConfig = {
   diContainer: AwilixContainer
   asyncInit?: boolean
   asyncDispose?: boolean
   eagerInject?: boolean
   strictBooleanEnforced?: boolean
+  enableDebugLogging?: boolean
+  loggerFn?: Logger
 }
 
 export function asMockClass<T = object>(
@@ -75,7 +79,10 @@ export class AwilixManager {
     }
 
     if (this.config.asyncInit) {
-      await asyncInit(this.config.diContainer)
+      await asyncInit(this.config.diContainer, {
+        enableDebugLogging: this.config.enableDebugLogging,
+        loggerFn: this.config.loggerFn,
+      })
     }
   }
 
@@ -92,7 +99,14 @@ export class AwilixManager {
   }
 }
 
-export async function asyncInit(diContainer: AwilixContainer) {
+export type AsyncInitOptions = {
+  enableDebugLogging?: boolean
+  loggerFn?: Logger
+}
+
+export async function asyncInit(diContainer: AwilixContainer, options: AsyncInitOptions = {}) {
+  const { enableDebugLogging, loggerFn = console.log } = options
+
   const dependenciesWithAsyncInit = Object.entries(diContainer.registrations)
     .filter((entry) => {
       return entry[1].asyncInit && entry[1].enabled !== false
@@ -111,6 +125,10 @@ export async function asyncInit(diContainer: AwilixContainer) {
     })
 
   for (const [key, description] of dependenciesWithAsyncInit) {
+    if (enableDebugLogging) {
+      loggerFn(`asyncInit: ${key} - started`)
+    }
+
     const resolvedValue = diContainer.resolve(key)
 
     // use default asyncInit method
@@ -119,23 +137,24 @@ export async function asyncInit(diContainer: AwilixContainer) {
         throw new Error(`Method asyncInit does not exist on dependency ${key}`)
       }
       await resolvedValue.asyncInit(diContainer.cradle)
-      continue
-    }
-
-    // use function asyncInit
-    if (typeof description.asyncInit === 'function') {
+    } else if (typeof description.asyncInit === 'function') {
+      // use function asyncInit
       await description.asyncInit(resolvedValue, diContainer)
-      continue
+    } else {
+      // use custom method name
+      // @ts-expect-error
+      if (!(description.asyncInit in resolvedValue)) {
+        throw new Error(
+          `Method ${description.asyncInit} for asyncInit does not exist on dependency ${key}`,
+        )
+      }
+      // @ts-expect-error
+      await resolvedValue[description.asyncInit](diContainer.cradle)
     }
 
-    // @ts-expect-error
-    if (!(description.asyncInit in resolvedValue)) {
-      throw new Error(
-        `Method ${description.asyncInit} for asyncInit does not exist on dependency ${key}`,
-      )
+    if (enableDebugLogging) {
+      loggerFn(`asyncInit: ${key} - finished`)
     }
-    // @ts-expect-error
-    await resolvedValue[description.asyncInit](diContainer.cradle)
   }
 }
 
