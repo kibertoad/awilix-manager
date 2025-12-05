@@ -616,6 +616,110 @@ describe('awilixManager', () => {
 
       expect(isInittedGlobal).toBe(true)
     })
+
+    it('logs dependency names when debug logging is enabled', async () => {
+      const loggedMessages: string[] = []
+      const customLogger = (message: string) => {
+        loggedMessages.push(message)
+      }
+
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+      diContainer.register(
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+
+      await asyncInit(diContainer, {
+        enableDebugLogging: true,
+        loggerFn: customLogger,
+      })
+
+      expect(loggedMessages).toEqual([
+        'asyncInit: dependency1 - started',
+        'asyncInit: dependency1 - finished',
+        'asyncInit: dependency2 - started',
+        'asyncInit: dependency2 - finished',
+      ])
+    })
+
+    it('does not log when debug logging is disabled', async () => {
+      const loggedMessages: string[] = []
+      const customLogger = (message: string) => {
+        loggedMessages.push(message)
+      }
+
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitSetClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      )
+
+      await asyncInit(diContainer, {
+        enableDebugLogging: false,
+        loggerFn: customLogger,
+      })
+
+      expect(loggedMessages).toEqual([])
+    })
+
+    it('logs dependency names via AwilixManager when debug logging is enabled', async () => {
+      const loggedMessages: string[] = []
+      const customLogger = (message: string) => {
+        loggedMessages.push(message)
+      }
+
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncInitPriority: 2,
+        }),
+      )
+      diContainer.register(
+        'dependency2',
+        asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncInitPriority: 1,
+        }),
+      )
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        enableDebugLogging: true,
+        loggerFn: customLogger,
+      })
+      await manager.executeInit()
+
+      expect(loggedMessages).toEqual([
+        'asyncInit: dependency2 - started',
+        'asyncInit: dependency2 - finished',
+        'asyncInit: dependency1 - started',
+        'asyncInit: dependency1 - finished',
+      ])
+    })
   })
 
   describe('asyncDispose', () => {
