@@ -107,7 +107,7 @@ Note that passing `undefined` or `null` as a value for the `enabled` parameter c
 
 ## Debug logging
 
-You can enable debug logging to see which dependencies are being initialized during `asyncInit`. This is useful for troubleshooting initialization order issues or understanding the startup sequence of your application.
+You can enable debug logging to see when each dependency starts and finishes initializing during `asyncInit`. This is especially helpful when your application is timing out during the awilix init phase, as it allows you to identify which dependency is hanging or taking too long to initialize.
 
 ```js
 import { AwilixManager } from 'awilix-manager'
