@@ -1,7 +1,7 @@
 {
   "name": "awilix-manager",
   "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -32,7 +32,17 @@
     "type": "git",
     "url": "git://github.com/kibertoad/awilix-manager.git"
   },
-  "keywords": ["init", "async", "eager", "awilix", "di"],
+  "keywords": [
+    "init",
+    "async",
+    "eager",
+    "awilix",
+    "di"
+  ],
   "homepage": "https://github.com/kibertoad/awilix-manager",
-  "files": ["README.md", "LICENSE", "dist/*"]
+  "files": [
+    "README.md",
+    "LICENSE",
+    "dist/*"
+  ]
 }
