@@ -1,12 +1,16 @@
+export type {
+  AsyncInitOptions,
+  AwilixManagerConfig,
+  Logger,
+} from './lib/awilixManager'
 export {
   AwilixManager,
   asMockClass,
   asMockFunction,
   asMockValue,
-  getByPredicate,
-  eagerInject,
-  asyncInit,
   asyncDispose,
+  asyncInit,
+  eagerInject,
+  getByPredicate,
   getWithTags,
 } from './lib/awilixManager'
-export type { AwilixManagerConfig, AsyncInitOptions, Logger } from './lib/awilixManager'

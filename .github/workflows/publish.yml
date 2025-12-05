@@ -38,9 +38,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build
-        run: npm run build:release
-
       - name: Determine version bump
         id: version
         run: |
@@ -61,6 +58,9 @@ jobs:
           git tag "v$(node -p "require('./package.json').version")"
           git push
           git push --tags
+
+      - name: Build
+        run: npm run build:release
 
       - name: Publish to npm
         run: npm publish --provenance --access public
