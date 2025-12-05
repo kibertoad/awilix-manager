@@ -1,5 +1,5 @@
 import type { AwilixContainer, NameAndRegistrationPair } from 'awilix'
-import { Lifetime, asClass } from 'awilix'
+import { asClass, Lifetime } from 'awilix'
 import '../lib/awilixManager'
 
 export const SINGLETON_CONFIG = { lifetime: Lifetime.SINGLETON }

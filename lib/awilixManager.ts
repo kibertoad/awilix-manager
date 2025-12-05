@@ -1,12 +1,12 @@
 import {
   type AwilixContainer,
+  asClass,
+  asFunction,
+  asValue,
   type BuildResolver,
   type BuildResolverOptions,
   type Constructor,
   type DisposableResolver,
-  asClass,
-  asFunction,
-  asValue,
 } from 'awilix'
 import type { FunctionReturning } from 'awilix/lib/container'
 import type { Resolver } from 'awilix/lib/resolvers'
@@ -244,7 +244,7 @@ export async function asyncDispose(diContainer: AwilixContainer) {
       await resolvedValue.asyncDispose()
       continue
     }
-    // @ts-ignore
+    // @ts-expect-error
     await resolvedValue[asyncDispose]()
   }
 }

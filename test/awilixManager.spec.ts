@@ -1,7 +1,6 @@
-import { type NameAndRegistrationPair, asClass, createContainer } from 'awilix'
-import { describe, expect, it } from 'vitest'
-
+import { asClass, createContainer, type NameAndRegistrationPair } from 'awilix'
 import type { Resolver } from 'awilix/lib/resolvers'
+import { describe, expect, it } from 'vitest'
 import {
   AwilixManager,
   asMockClass,
