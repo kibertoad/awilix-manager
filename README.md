@@ -172,6 +172,92 @@ await asyncInit(diContainer, {
 })
 ```
 
+## Non-blocking async initialization
+
+In some cases you may want to fire off an async initialization without waiting for it to complete. This is useful for background tasks that don't need to be ready before the application starts accepting requests.
+
+You can use the object syntax for `asyncInit` with the `nonBlocking` option:
+
+```js
+import { AwilixManager } from 'awilix-manager'
+import { asClass, createContainer } from 'awilix'
+
+class BackgroundJobProcessor {
+  async asyncInit() {
+    // Start processing jobs in the background
+    // This may take a long time and we don't want to block startup
+    await this.connectToJobQueue()
+    await this.startProcessing()
+  }
+}
+
+class CriticalService {
+  async asyncInit() {
+    // This must complete before the app is ready
+    await this.loadConfiguration()
+  }
+}
+
+const diContainer = createContainer({
+  injectionMode: 'PROXY',
+})
+
+diContainer.register(
+  'criticalService',
+  asClass(CriticalService, {
+    lifetime: 'SINGLETON',
+    asyncInit: true, // blocking (default behavior)
+    asyncInitPriority: 1,
+  }),
+)
+
+diContainer.register(
+  'backgroundProcessor',
+  asClass(BackgroundJobProcessor, {
+    lifetime: 'SINGLETON',
+    asyncInit: { nonBlocking: true }, // fire-and-forget
+    asyncInitPriority: 2,
+  }),
+)
+
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+})
+
+// This will:
+// 1. Wait for criticalService.asyncInit() to complete
+// 2. Start backgroundProcessor.asyncInit() but NOT wait for it
+await awilixManager.executeInit()
+
+// At this point, criticalService is ready, but backgroundProcessor may still be initializing
+```
+
+You can also specify a custom method name or function with the object syntax:
+
+```js
+// Using a custom method name
+diContainer.register(
+  'consumer',
+  asClass(QueueConsumer, {
+    asyncInit: { method: 'startConsuming', nonBlocking: true },
+  }),
+)
+
+// Using a custom function
+diContainer.register(
+  'processor',
+  asClass(Processor, {
+    asyncInit: {
+      method: (instance, diContainer) => instance.start(diContainer.cradle.config),
+      nonBlocking: true,
+    },
+  }),
+)
+```
+
+Note that errors thrown during non-blocking initialization will not propagate to the caller. Method existence is validated synchronously before the async initialization starts, so missing methods will still throw errors immediately.
+
 ## Fetching dependencies based on tags
 
 In some cases you may want to get dependencies based on a supplied list of tags. 
