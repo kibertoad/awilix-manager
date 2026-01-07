@@ -11,12 +11,21 @@ import {
 import type { FunctionReturning } from 'awilix/lib/container'
 import type { Resolver } from 'awilix/lib/resolvers'
 
+type AsyncInitFunction<T> = <U extends T>(
+  instance: U,
+  diContainer: AwilixContainer,
+) => Promise<unknown>
+
+type AsyncInitMethod<T> = boolean | string | AsyncInitFunction<T>
+
+type AsyncInitConfig<T> = {
+  method?: AsyncInitMethod<T>
+  nonBlocking?: boolean
+}
+
 declare module 'awilix' {
   interface ResolverOptions<T> {
-    asyncInit?:
-      | boolean
-      | string
-      | (<U extends T>(instance: U, diContainer: AwilixContainer) => Promise<unknown>)
+    asyncInit?: AsyncInitMethod<T> | AsyncInitConfig<T>
     asyncInitPriority?: number // lower means it gets initted earlier
     asyncDispose?: boolean | string | (<U extends T>(instance: U) => Promise<unknown>)
     asyncDisposePriority?: number // lower means it gets disposed earlier
@@ -104,6 +113,27 @@ export type AsyncInitOptions = {
   loggerFn?: Logger
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: generic utility function
+function isAsyncInitConfig(value: any): value is AsyncInitConfig<unknown> {
+  return (
+    typeof value === 'object' && value !== null && ('method' in value || 'nonBlocking' in value)
+  )
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: generic utility function
+function getAsyncInitMethod(asyncInit: any): AsyncInitMethod<unknown> {
+  if (isAsyncInitConfig(asyncInit)) {
+    // If method is not specified, default to true (use default asyncInit method)
+    return asyncInit.method ?? true
+  }
+  return asyncInit
+}
+
+// biome-ignore lint/suspicious/noExplicitAny: generic utility function
+function isNonBlocking(asyncInit: any): boolean {
+  return isAsyncInitConfig(asyncInit) && asyncInit.nonBlocking === true
+}
+
 export async function asyncInit(diContainer: AwilixContainer, options: AsyncInitOptions = {}) {
   const { enableDebugLogging, loggerFn = console.log } = options
 
@@ -130,31 +160,64 @@ export async function asyncInit(diContainer: AwilixContainer, options: AsyncInit
     }
 
     const resolvedValue = diContainer.resolve(key)
+    const method = getAsyncInitMethod(description.asyncInit)
+    const nonBlocking = isNonBlocking(description.asyncInit)
 
-    // use default asyncInit method
-    if (description.asyncInit === true) {
-      if (!('asyncInit' in resolvedValue)) {
-        throw new Error(`Method asyncInit does not exist on dependency ${key}`)
-      }
-      await resolvedValue.asyncInit(diContainer.cradle)
-    } else if (typeof description.asyncInit === 'function') {
-      // use function asyncInit
-      await description.asyncInit(resolvedValue, diContainer)
+    // Validate method existence synchronously before starting async init
+    validateAsyncInitMethod(resolvedValue, method, key)
+
+    const initPromise = executeAsyncInitMethod(resolvedValue, method, key, diContainer)
+
+    if (nonBlocking) {
+      // Fire-and-forget: don't await the promise
+      initPromise.then(() => {
+        if (enableDebugLogging) {
+          loggerFn(`asyncInit: ${key} - finished (non-blocking)`)
+        }
+      })
     } else {
-      // use custom method name
-      // @ts-expect-error
-      if (!(description.asyncInit in resolvedValue)) {
-        throw new Error(
-          `Method ${description.asyncInit} for asyncInit does not exist on dependency ${key}`,
-        )
+      await initPromise
+      if (enableDebugLogging) {
+        loggerFn(`asyncInit: ${key} - finished`)
       }
-      // @ts-expect-error
-      await resolvedValue[description.asyncInit](diContainer.cradle)
     }
+  }
+}
 
-    if (enableDebugLogging) {
-      loggerFn(`asyncInit: ${key} - finished`)
+function validateAsyncInitMethod(
+  // biome-ignore lint/suspicious/noExplicitAny: generic resolved value
+  resolvedValue: any,
+  method: AsyncInitMethod<unknown>,
+  key: string,
+): void {
+  if (method === true) {
+    if (!('asyncInit' in resolvedValue)) {
+      throw new Error(`Method asyncInit does not exist on dependency ${key}`)
     }
+  } else if (typeof method === 'string') {
+    // custom method name
+    if (!(method in resolvedValue)) {
+      throw new Error(`Method ${method} for asyncInit does not exist on dependency ${key}`)
+    }
+  }
+}
+
+async function executeAsyncInitMethod(
+  // biome-ignore lint/suspicious/noExplicitAny: generic resolved value
+  resolvedValue: any,
+  method: AsyncInitMethod<unknown>,
+  key: string,
+  diContainer: AwilixContainer,
+): Promise<void> {
+  // use default asyncInit method
+  if (method === true) {
+    await resolvedValue.asyncInit(diContainer.cradle)
+  } else if (typeof method === 'function') {
+    // use function asyncInit
+    await method(resolvedValue, diContainer)
+  } else if (typeof method === 'string') {
+    // use custom method name
+    await resolvedValue[method](diContainer.cradle)
   }
 }
 
