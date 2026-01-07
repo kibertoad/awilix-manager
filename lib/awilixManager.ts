@@ -194,7 +194,7 @@ function validateAsyncInitMethod(
     if (!('asyncInit' in resolvedValue)) {
       throw new Error(`Method asyncInit does not exist on dependency ${key}`)
     }
-  } else if (typeof method !== 'function') {
+  } else if (typeof method === 'string') {
     // custom method name
     if (!(method in resolvedValue)) {
       throw new Error(`Method ${method} for asyncInit does not exist on dependency ${key}`)
@@ -215,7 +215,7 @@ async function executeAsyncInitMethod(
   } else if (typeof method === 'function') {
     // use function asyncInit
     await method(resolvedValue, diContainer)
-  } else {
+  } else if (typeof method === 'string') {
     // use custom method name
     await resolvedValue[method](diContainer.cradle)
   }
