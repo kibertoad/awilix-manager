@@ -11,10 +11,12 @@ import {
 import type { FunctionReturning } from 'awilix/lib/container'
 import type { Resolver } from 'awilix/lib/resolvers'
 
-type AsyncInitMethod<T> =
-  | boolean
-  | string
-  | (<U extends T>(instance: U, diContainer: AwilixContainer) => Promise<unknown>)
+type AsyncInitFunction<T> = <U extends T>(
+  instance: U,
+  diContainer: AwilixContainer,
+) => Promise<unknown>
+
+type AsyncInitMethod<T> = boolean | string | AsyncInitFunction<T>
 
 type AsyncInitConfig<T> = {
   method?: AsyncInitMethod<T>
@@ -114,14 +116,12 @@ export type AsyncInitOptions = {
 // biome-ignore lint/suspicious/noExplicitAny: generic utility function
 function isAsyncInitConfig(value: any): value is AsyncInitConfig<unknown> {
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    ('method' in value || 'nonBlocking' in value)
+    typeof value === 'object' && value !== null && ('method' in value || 'nonBlocking' in value)
   )
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: generic utility function
-function getAsyncInitMethod(asyncInit: any): boolean | string | Function {
+function getAsyncInitMethod(asyncInit: any): AsyncInitMethod<unknown> {
   if (isAsyncInitConfig(asyncInit)) {
     // If method is not specified, default to true (use default asyncInit method)
     return asyncInit.method ?? true
@@ -187,7 +187,7 @@ export async function asyncInit(diContainer: AwilixContainer, options: AsyncInit
 function validateAsyncInitMethod(
   // biome-ignore lint/suspicious/noExplicitAny: generic resolved value
   resolvedValue: any,
-  method: boolean | string | Function,
+  method: AsyncInitMethod<unknown>,
   key: string,
 ): void {
   if (method === true) {
@@ -205,7 +205,7 @@ function validateAsyncInitMethod(
 async function executeAsyncInitMethod(
   // biome-ignore lint/suspicious/noExplicitAny: generic resolved value
   resolvedValue: any,
-  method: boolean | string | Function,
+  method: AsyncInitMethod<unknown>,
   key: string,
   diContainer: AwilixContainer,
 ): Promise<void> {
