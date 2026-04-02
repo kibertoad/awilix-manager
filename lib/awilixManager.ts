@@ -13,7 +13,7 @@ import type { Resolver } from 'awilix/lib/resolvers'
 
 type AsyncInitFunction<T> = <U extends T>(
   instance: U,
-  diContainer: AwilixContainer,
+  diContainer: AwilixContainer<any>,
 ) => Promise<unknown>
 
 type AsyncInitMethod<T> = boolean | string | AsyncInitFunction<T>
