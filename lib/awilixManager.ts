@@ -82,7 +82,7 @@ export class AwilixManager {
     }
   }
 
-  async executeInit() {
+  async executeInit(): Promise<void> {
     if (this.config.eagerInject) {
       eagerInject(this.config.diContainer)
     }
@@ -95,7 +95,7 @@ export class AwilixManager {
     }
   }
 
-  async executeDispose() {
+  async executeDispose(): Promise<void> {
     await asyncDispose(this.config.diContainer)
   }
 
@@ -131,7 +131,10 @@ function isNonBlocking(asyncInit: any): boolean {
   return isAsyncInitConfig(asyncInit) && asyncInit.nonBlocking === true
 }
 
-export async function asyncInit(diContainer: AwilixContainer, options: AsyncInitOptions = {}) {
+export async function asyncInit(
+  diContainer: AwilixContainer,
+  options: AsyncInitOptions = {},
+): Promise<void> {
   const { enableDebugLogging, loggerFn = console.log } = options
 
   const dependenciesWithAsyncInit = Object.entries(diContainer.registrations)
@@ -216,7 +219,7 @@ async function executeAsyncInitMethod(
   }
 }
 
-export function eagerInject(diContainer: AwilixContainer<any>) {
+export function eagerInject(diContainer: AwilixContainer<any>): void {
   const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter(
     ([_key, description]) => {
       return description.eagerInject && description.enabled !== false
@@ -273,7 +276,7 @@ export function getByPredicate(
   return resolvedComponents
 }
 
-export async function asyncDispose(diContainer: AwilixContainer<any>) {
+export async function asyncDispose(diContainer: AwilixContainer<any>): Promise<void> {
   const dependenciesWithAsyncDispose = Object.entries(diContainer.registrations)
     .filter(([_key, description]) => {
       return description.asyncDispose && description.enabled !== false
