@@ -113,14 +113,12 @@ export type AsyncInitOptions = {
   loggerFn?: Logger
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: generic utility function
 function isAsyncInitConfig(value: any): value is AsyncInitConfig<unknown> {
   return (
     typeof value === 'object' && value !== null && ('method' in value || 'nonBlocking' in value)
   )
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: generic utility function
 function getAsyncInitMethod(asyncInit: any): AsyncInitMethod<unknown> {
   if (isAsyncInitConfig(asyncInit)) {
     // If method is not specified, default to true (use default asyncInit method)
@@ -129,7 +127,6 @@ function getAsyncInitMethod(asyncInit: any): AsyncInitMethod<unknown> {
   return asyncInit
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: generic utility function
 function isNonBlocking(asyncInit: any): boolean {
   return isAsyncInitConfig(asyncInit) && asyncInit.nonBlocking === true
 }
@@ -185,7 +182,6 @@ export async function asyncInit(diContainer: AwilixContainer, options: AsyncInit
 }
 
 function validateAsyncInitMethod(
-  // biome-ignore lint/suspicious/noExplicitAny: generic resolved value
   resolvedValue: any,
   method: AsyncInitMethod<unknown>,
   key: string,
@@ -203,10 +199,9 @@ function validateAsyncInitMethod(
 }
 
 async function executeAsyncInitMethod(
-  // biome-ignore lint/suspicious/noExplicitAny: generic resolved value
   resolvedValue: any,
   method: AsyncInitMethod<unknown>,
-  key: string,
+  _key: string,
   diContainer: AwilixContainer,
 ): Promise<void> {
   // use default asyncInit method
@@ -221,7 +216,7 @@ async function executeAsyncInitMethod(
   }
 }
 
-export function eagerInject(diContainer: AwilixContainer) {
+export function eagerInject(diContainer: AwilixContainer<any>) {
   const dependenciesWithEagerInject = Object.entries(diContainer.registrations).filter(
     ([_key, description]) => {
       return description.eagerInject && description.enabled !== false
@@ -236,7 +231,10 @@ export function eagerInject(diContainer: AwilixContainer) {
   }
 }
 
-export function getWithTags(diContainer: AwilixContainer, tags: string[]): Record<string, any> {
+export function getWithTags(
+  diContainer: AwilixContainer<any>,
+  tags: string[],
+): Record<string, any> {
   const dependenciesWithTags = Object.entries(diContainer.registrations).filter(
     ([_key, description]) => {
       return (
@@ -255,7 +253,7 @@ export function getWithTags(diContainer: AwilixContainer, tags: string[]): Recor
 }
 
 export function getByPredicate(
-  diContainer: AwilixContainer,
+  diContainer: AwilixContainer<any>,
   predicate: (entity: any) => boolean,
 ): Record<string, any> {
   const enabledDependencies = Object.entries(diContainer.registrations).filter(
@@ -275,7 +273,7 @@ export function getByPredicate(
   return resolvedComponents
 }
 
-export async function asyncDispose(diContainer: AwilixContainer) {
+export async function asyncDispose(diContainer: AwilixContainer<any>) {
   const dependenciesWithAsyncDispose = Object.entries(diContainer.registrations)
     .filter(([_key, description]) => {
       return description.asyncDispose && description.enabled !== false
