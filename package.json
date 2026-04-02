@@ -14,7 +14,7 @@
         "prepublishOnly": "npm run build:release"
     },
     "peerDependencies": {
-        "awilix": ">=13.0.0"
+        "awilix": ">=9.0.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.3.8",
