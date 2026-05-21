@@ -851,6 +851,34 @@ describe('awilixManager', () => {
       expect(initFinished).toBe(true)
     })
 
+    it('supports object syntax with method explicitly disabled (method: false)', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+
+      let initCalled = false
+
+      class CustomInitClass {
+        asyncInit() {
+          initCalled = true
+          return Promise.resolve()
+        }
+      }
+
+      diContainer.register(
+        'dependency1',
+        asClass(CustomInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: { method: false },
+        }),
+      )
+
+      await asyncInit(diContainer)
+
+      // No init method should be executed when method is explicitly false
+      expect(initCalled).toBe(false)
+    })
+
     it('supports object syntax with nonBlocking: false (blocking)', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
