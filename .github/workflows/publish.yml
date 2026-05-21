@@ -36,8 +36,11 @@ jobs:
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
-          # Dependency caching is intentionally disabled for releases so
-          # every published build installs from a clean store.
+          # Caching is explicitly disabled for the release pipeline so every
+          # published build installs from a clean store. 'cache' is left unset
+          # and 'package-manager-cache: false' also turns off setup-node's
+          # automatic caching (which defaults to enabled).
+          package-manager-cache: false
 
       - name: Configure Git
         run: |

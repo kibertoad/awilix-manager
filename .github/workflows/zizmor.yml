@@ -3,7 +3,9 @@ name: zizmor
 
 # Audits GitHub Actions workflows for security issues with zizmor.
 # Findings are surfaced as inline workflow annotations on the pull
-# request (GitHub renders up to 10 annotations per run).
+# request (GitHub renders up to 10 annotations per run). zizmor exits
+# non-zero whenever it reports a finding, so any finding fails this
+# check (make it a required status check to block merging).
 
 on:
   push:
