@@ -1,0 +1,37 @@
+---
+name: zizmor
+
+# Audits GitHub Actions workflows for security issues with zizmor.
+# Findings are uploaded to GitHub code scanning, which surfaces them as
+# inline annotations on the "Files changed" tab of every pull request.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - '**'
+
+permissions: {}
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read # checkout the repository
+      security-events: write # upload SARIF results to code scanning
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
+        with:
+          # Upload findings to code scanning for in-PR annotations.
+          advanced-security: true
