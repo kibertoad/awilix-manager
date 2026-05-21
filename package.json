@@ -21,11 +21,11 @@
         "@biomejs/biome": "^2.3.8",
         "@lokalise/biome-config": "^3.1.0",
         "@types/node": "^22.15.20",
-        "@vitest/coverage-v8": "^4.1.6",
+        "@vitest/coverage-v8": "^4.1.7",
         "awilix": "^13.0.3",
         "del-cli": "^7.0.0",
         "typescript": "^6.0.2",
-        "vitest": "^3.2.4"
+        "vitest": "^4.1.7"
     },
     "engines": {
         "node": ">=22.13"

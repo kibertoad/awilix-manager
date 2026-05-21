@@ -14,5 +14,10 @@ updates:
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: '@types/node'
+    groups:
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
     cooldown:
       default-days: 7
