@@ -2,16 +2,17 @@
     "name": "awilix-manager",
     "description": "Wrapper over awilix to support more complex use-cases, such as async init and eager injection",
     "version": "6.4.0",
+    "packageManager": "pnpm@11.1.3",
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "scripts": {
         "build": "tsc",
-        "build:release": "del-cli dist && del-cli coverage && npm run lint && npm run build",
+        "build:release": "del-cli dist && del-cli coverage && pnpm run lint && pnpm run build",
         "test": "vitest",
-        "test:coverage": "npm test -- --coverage",
+        "test:coverage": "pnpm test -- --coverage",
         "lint": "biome check . && tsc --project tsconfig.lint.json --noEmit",
         "lint:fix": "biome check --write .",
-        "prepublishOnly": "npm run build:release"
+        "prepublishOnly": "pnpm run build:release"
     },
     "peerDependencies": {
         "awilix": ">=9.0.0"
@@ -27,7 +28,7 @@
         "vitest": "^3.2.4"
     },
     "engines": {
-        "node": ">=18"
+        "node": ">=22.13"
     },
     "repository": {
         "type": "git",

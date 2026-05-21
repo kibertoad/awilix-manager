@@ -126,4 +126,7 @@ dist
 .yarn/install-state.gz
 .pnp.*
 /.idea/
+
+# Lockfiles from other package managers (this project uses pnpm)
 /package-lock.json
+/yarn.lock

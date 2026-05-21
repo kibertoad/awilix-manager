@@ -5,6 +5,8 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
   - package-ecosystem: npm
     directory: '/'
     schedule:
@@ -12,3 +14,5 @@ updates:
     open-pull-requests-limit: 10
     ignore:
       - dependency-name: '@types/node'
+    cooldown:
+      default-days: 7
