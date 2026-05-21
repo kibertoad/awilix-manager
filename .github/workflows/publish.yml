@@ -36,7 +36,8 @@ jobs:
         with:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
-          cache: pnpm
+          # Dependency caching is intentionally disabled for releases so
+          # every published build installs from a clean store.
 
       - name: Configure Git
         run: |
