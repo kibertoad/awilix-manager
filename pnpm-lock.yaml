@@ -22,7 +22,7 @@ importers:
         version: 4.1.9(vitest@4.1.9)
       awilix:
         specifier: ^13.0.3
-        version: 13.0.4
+        version: 13.0.5
       del-cli:
         specifier: ^7.0.0
         version: 7.0.0
@@ -496,8 +496,8 @@ packages:
   ast-v8-to-istanbul@1.0.4:
     resolution: {integrity: sha512-0bC0/4bTSrnwdhU3IsZDwEdojvuPrSg59OYZfKsLRtJZ0u8VBx9DebfqqG8bRdCC0I7vjgxmPi41P0lpkhJHtA==}
 
-  awilix@13.0.4:
-    resolution: {integrity: sha512-7jL7ksLg8fB3yyZ/gEhXfDTUTUeffLYKD5exXGpj0QdqUxN/XsQKt4JOuPE6StUfPiw17D1jp0hWlLs1cLCdwA==}
+  awilix@13.0.5:
+    resolution: {integrity: sha512-ORtca6suBdYA1FyTzqHEZDvEuUwo3lPDDBRm7GrzHgi6STESzJKdBtpqfTzObdMj1NGQUWX6k26E3EbQaGJX5Q==}
     engines: {node: '>=20.0.0'}
 
   braces@3.0.3:
@@ -1141,7 +1141,7 @@ snapshots:
       estree-walker: 3.0.3
       js-tokens: 10.0.0
 
-  awilix@13.0.4:
+  awilix@13.0.5:
     dependencies:
       fast-glob: 3.3.3
 
