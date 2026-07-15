@@ -24,7 +24,7 @@
         "@vitest/coverage-v8": "^4.1.7",
         "awilix": "^13.0.3",
         "del-cli": "^7.0.0",
-        "typescript": "^6.0.2",
+        "typescript": "^7.0.2",
         "vitest": "^4.1.7"
     },
     "engines": {
