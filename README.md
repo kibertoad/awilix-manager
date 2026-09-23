@@ -256,7 +256,63 @@ diContainer.register(
 )
 ```
 
-Note that errors thrown during non-blocking initialization will not propagate to the caller. Method existence is validated synchronously before the async initialization starts, so missing methods will still throw errors immediately.
+Errors thrown during non-blocking initialization do not propagate to the caller. They are passed to `onNonBlockingInitError`, which defaults to logging with `console.error`:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  onNonBlockingInitError: (dependencyName, error) => {
+    logger.error({ err: error, dependencyName }, 'Background init failed')
+  },
+})
+```
+
+The handler may throw, for example to rethrow the error when a failed background init should stop the app. What it throws becomes an unhandled rejection, which terminates the process under Node's default `--unhandled-rejections=throw`.
+
+`asyncInit(diContainer, { onNonBlockingInitError })` accepts the same option. A missing method is detected before that dependency's init starts, and `asyncInit` rejects with it. If `concurrent` inits of the same priority are already running, the rejection waits for them to settle.
+
+## Concurrent async initialization
+
+By default, dependencies are initialized one after another, even when they share a priority. When a group of dependencies does not depend on each other, for example message queue consumers that each set up their own queue, you can let them initialize at the same time with the `concurrent` option:
+
+```js
+diContainer.register(
+  'ordersConsumer',
+  asClass(OrdersConsumer, {
+    asyncInit: { method: 'start', concurrent: true },
+  }),
+)
+
+diContainer.register(
+  'invoicesConsumer',
+  asClass(InvoicesConsumer, {
+    asyncInit: { method: 'start', concurrent: true },
+  }),
+)
+```
+
+Priorities still act as barriers:
+
+- every dependency with a lower `asyncInitPriority` finishes initializing before a concurrent init starts
+- a concurrent init finishes before any dependency with a higher `asyncInitPriority` starts
+- dependencies of the same priority without the option still run one after another, in the usual order, while the concurrent ones run alongside them
+
+To cap how many concurrent inits of one priority run at the same time, pass `maxConcurrency`. The rest wait for a free slot, in the usual order. It defaults to no limit:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  maxConcurrency: 5,
+})
+```
+
+`asyncInit(diContainer, { maxConcurrency })` accepts the same option.
+
+`concurrent` and `nonBlocking` cannot be combined. `asyncInit` rejects a registration that sets both before it starts any init.
+
+If any init of a priority fails, no further inits of that priority start, including concurrent inits still waiting for a slot. `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the error that happened first. Apart from `nonBlocking` inits, nothing is left initializing in the background when the caller handles the failure.
 
 ## Fetching dependencies based on tags
 

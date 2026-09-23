@@ -10,6 +10,7 @@ import {
 } from 'awilix'
 import type { FunctionReturning } from 'awilix/lib/container'
 import type { Resolver } from 'awilix/lib/resolvers'
+import { pMap } from './pMap'
 
 type AsyncInitFunction<T> = <U extends T>(
   instance: U,
@@ -20,8 +21,15 @@ type AsyncInitMethod<T> = boolean | string | AsyncInitFunction<T>
 
 type AsyncInitConfig<T> = {
   method?: AsyncInitMethod<T>
-  nonBlocking?: boolean
-}
+} & (
+  | { nonBlocking?: boolean; concurrent?: false }
+  | {
+      nonBlocking?: false
+      // Runs alongside the other inits of the same priority instead of after them. Lower priorities
+      // still finish before it starts, and it finishes before any higher priority starts.
+      concurrent?: boolean
+    }
+)
 
 declare module 'awilix' {
   interface ResolverOptions<T> {
@@ -37,6 +45,8 @@ declare module 'awilix' {
 
 export type Logger = (message: string) => void
 
+export type NonBlockingInitErrorHandler = (dependencyName: string, error: unknown) => void
+
 export type AwilixManagerConfig = {
   diContainer: AwilixContainer
   asyncInit?: boolean
@@ -45,6 +55,8 @@ export type AwilixManagerConfig = {
   strictBooleanEnforced?: boolean
   enableDebugLogging?: boolean
   loggerFn?: Logger
+  onNonBlockingInitError?: NonBlockingInitErrorHandler
+  maxConcurrency?: number
 }
 
 export function asMockClass<T = object>(
@@ -91,6 +103,8 @@ export class AwilixManager {
       await asyncInit(this.config.diContainer, {
         enableDebugLogging: this.config.enableDebugLogging,
         loggerFn: this.config.loggerFn,
+        onNonBlockingInitError: this.config.onNonBlockingInitError,
+        maxConcurrency: this.config.maxConcurrency,
       })
     }
   }
@@ -111,11 +125,17 @@ export class AwilixManager {
 export type AsyncInitOptions = {
   enableDebugLogging?: boolean
   loggerFn?: Logger
+  // Receives the rejection of a `nonBlocking` init, which nothing else awaits. Defaults to console.error.
+  onNonBlockingInitError?: NonBlockingInitErrorHandler
+  // How many `concurrent` inits of one priority may run at the same time. Defaults to no limit.
+  maxConcurrency?: number
 }
 
 function isAsyncInitConfig(value: any): value is AsyncInitConfig<unknown> {
   return (
-    typeof value === 'object' && value !== null && ('method' in value || 'nonBlocking' in value)
+    typeof value === 'object' &&
+    value !== null &&
+    ('method' in value || 'nonBlocking' in value || 'concurrent' in value)
   )
 }
 
@@ -131,11 +151,141 @@ function isNonBlocking(asyncInit: any): boolean {
   return isAsyncInitConfig(asyncInit) && asyncInit.nonBlocking === true
 }
 
+function isConcurrent(asyncInit: any): boolean {
+  return isAsyncInitConfig(asyncInit) && asyncInit.concurrent === true
+}
+
+function logNonBlockingInitError(dependencyName: string, error: unknown): void {
+  console.error(`asyncInit: ${dependencyName} - failed (non-blocking)`, error)
+}
+
+type AsyncInitEntry = [string, Resolver<any>]
+
+function groupByPriority(sortedEntries: AsyncInitEntry[]): AsyncInitEntry[][] {
+  const groups: AsyncInitEntry[][] = []
+  let currentPriority: number | undefined
+  for (const entry of sortedEntries) {
+    const priority = entry[1].asyncInitPriority ?? 1
+    if (groups.length === 0 || priority !== currentPriority) {
+      groups.push([])
+      currentPriority = priority
+    }
+    groups[groups.length - 1].push(entry)
+  }
+  return groups
+}
+
+function validateAsyncInitConfig(entries: AsyncInitEntry[], maxConcurrency: number): void {
+  if (
+    !(
+      (Number.isSafeInteger(maxConcurrency) && maxConcurrency >= 1) ||
+      maxConcurrency === Number.POSITIVE_INFINITY
+    )
+  ) {
+    throw new TypeError(
+      `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
+    )
+  }
+
+  for (const [key, description] of entries) {
+    if (isNonBlocking(description.asyncInit) && isConcurrent(description.asyncInit)) {
+      throw new Error(
+        `Invalid asyncInit config for ${key}: "nonBlocking" and "concurrent" cannot both be set`,
+      )
+    }
+  }
+}
+
+type PriorityGroupContext = {
+  diContainer: AwilixContainer
+  logDebug: Logger
+  onNonBlockingInitError: NonBlockingInitErrorHandler
+  maxConcurrency: number
+}
+
+async function initPriorityGroup(
+  priorityGroup: AsyncInitEntry[],
+  { diContainer, logDebug, onNonBlockingInitError, maxConcurrency }: PriorityGroupContext,
+): Promise<void> {
+  // The first failure of the priority, in the order failures happen. A concurrent init records its
+  // rejection as soon as it lands, so it is handled even while a sequential init is still awaited.
+  let failure: { error: unknown } | undefined
+  const recordFailure = (error: unknown) => {
+    failure ??= { error }
+  }
+
+  const startInit = (key: string, description: Resolver<any>): Promise<void> => {
+    logDebug(`asyncInit: ${key} - started`)
+
+    const resolvedValue = diContainer.resolve(key)
+    const method = getAsyncInitMethod(description.asyncInit)
+
+    // Validate method existence synchronously before starting async init
+    validateAsyncInitMethod(resolvedValue, method, key)
+
+    return executeAsyncInitMethod(resolvedValue, method, key, diContainer)
+  }
+
+  // The mapper never throws, so pMap resolves only once every concurrent init it started has
+  // settled. An init still waiting for a slot when a failure is recorded is never started.
+  const concurrentInits = pMap(
+    priorityGroup.filter(([, description]) => isConcurrent(description.asyncInit)),
+    async ([key, description]) => {
+      if (failure) {
+        return
+      }
+      try {
+        await startInit(key, description)
+        logDebug(`asyncInit: ${key} - finished (concurrent)`)
+      } catch (error) {
+        recordFailure(error)
+      }
+    },
+    { concurrency: maxConcurrency },
+  )
+
+  try {
+    for (const [key, description] of priorityGroup) {
+      if (failure) {
+        break
+      }
+      if (isConcurrent(description.asyncInit)) {
+        continue
+      }
+
+      const initPromise = startInit(key, description)
+
+      if (isNonBlocking(description.asyncInit)) {
+        initPromise
+          .then(() => logDebug(`asyncInit: ${key} - finished (non-blocking)`))
+          .catch((error: unknown) => onNonBlockingInitError(key, error))
+      } else {
+        await initPromise
+        logDebug(`asyncInit: ${key} - finished`)
+      }
+    }
+  } catch (error) {
+    recordFailure(error)
+  }
+
+  // Concurrent inits that are already running are waited for even after a failure, so that
+  // nothing is still initializing when the caller reacts to the error, e.g. by disposing.
+  await concurrentInits
+  if (failure) {
+    throw failure.error
+  }
+}
+
 export async function asyncInit(
   diContainer: AwilixContainer,
   options: AsyncInitOptions = {},
 ): Promise<void> {
-  const { enableDebugLogging, loggerFn = console.log } = options
+  const {
+    enableDebugLogging,
+    loggerFn = console.log,
+    onNonBlockingInitError = logNonBlockingInitError,
+    maxConcurrency = Number.POSITIVE_INFINITY,
+  } = options
 
   const dependenciesWithAsyncInit = Object.entries(diContainer.registrations)
     .filter((entry) => {
@@ -154,33 +304,21 @@ export async function asyncInit(
       return key1.localeCompare(key2)
     })
 
-  for (const [key, description] of dependenciesWithAsyncInit) {
+  validateAsyncInitConfig(dependenciesWithAsyncInit, maxConcurrency)
+
+  const logDebug = (message: string) => {
     if (enableDebugLogging) {
-      loggerFn(`asyncInit: ${key} - started`)
+      loggerFn(message)
     }
+  }
 
-    const resolvedValue = diContainer.resolve(key)
-    const method = getAsyncInitMethod(description.asyncInit)
-    const nonBlocking = isNonBlocking(description.asyncInit)
-
-    // Validate method existence synchronously before starting async init
-    validateAsyncInitMethod(resolvedValue, method, key)
-
-    const initPromise = executeAsyncInitMethod(resolvedValue, method, key, diContainer)
-
-    if (nonBlocking) {
-      // Fire-and-forget: don't await the promise
-      initPromise.then(() => {
-        if (enableDebugLogging) {
-          loggerFn(`asyncInit: ${key} - finished (non-blocking)`)
-        }
-      })
-    } else {
-      await initPromise
-      if (enableDebugLogging) {
-        loggerFn(`asyncInit: ${key} - finished`)
-      }
-    }
+  for (const priorityGroup of groupByPriority(dependenciesWithAsyncInit)) {
+    await initPriorityGroup(priorityGroup, {
+      diContainer,
+      logDebug,
+      onNonBlockingInitError,
+      maxConcurrency,
+    })
   }
 }
 

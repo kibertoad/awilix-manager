@@ -1,6 +1,6 @@
-import { asClass, createContainer, type NameAndRegistrationPair } from 'awilix'
+import { asClass, asFunction, createContainer, type NameAndRegistrationPair } from 'awilix'
 import type { Resolver } from 'awilix/lib/resolvers'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   AwilixManager,
   asMockClass,
@@ -87,6 +87,23 @@ class InitSetClass {
     isInittedCustom = true
   }
 }
+
+// asyncInit stays pending until the test settles it, so it can observe what runs in between
+class DeferredInit {
+  isStarted = false
+  resolve: () => void = () => undefined
+  reject: (error: unknown) => void = () => undefined
+
+  asyncInit() {
+    this.isStarted = true
+    return new Promise<void>((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+  }
+}
+
+const flushPromises = () => new Promise((resolve) => setImmediate(resolve))
 
 describe('asMockClass', () => {
   it('Supports passing a mock instance that does not fully implement the real class', () => {
@@ -982,6 +999,485 @@ describe('awilixManager', () => {
       await expect(() => asyncInit(diContainer)).rejects.toThrowError(
         'Method asyncInit does not exist on dependency dependency1',
       )
+    })
+
+    it('passes a non-blocking init failure to onNonBlockingInitError', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      diContainer.register(
+        'dependency1',
+        asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+          lifetime: 'SINGLETON',
+          asyncInit: { nonBlocking: true },
+        }),
+      )
+      const onNonBlockingInitError = vi.fn()
+
+      const manager = new AwilixManager({
+        diContainer,
+        asyncInit: true,
+        onNonBlockingInitError,
+      })
+      await manager.executeInit()
+      await flushPromises()
+
+      expect(onNonBlockingInitError).toHaveBeenCalledWith('dependency1', initError)
+    })
+
+    it('logs a non-blocking init failure with console.error by default', async () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      diContainer.register(
+        'dependency1',
+        asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+          lifetime: 'SINGLETON',
+          asyncInit: { nonBlocking: true },
+        }),
+      )
+
+      try {
+        await asyncInit(diContainer)
+        await flushPromises()
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          'asyncInit: dependency1 - failed (non-blocking)',
+          initError,
+        )
+      } finally {
+        consoleErrorSpy.mockRestore()
+      }
+    })
+  })
+
+  describe('asyncInit with concurrent option', () => {
+    it('runs concurrent inits of the same priority at the same time', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const dependency1 = new DeferredInit()
+      const dependency2 = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => dependency1, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => dependency2, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer)
+      await flushPromises()
+
+      expect(dependency1.isStarted).toBe(true)
+      expect(dependency2.isStarted).toBe(true)
+
+      dependency1.resolve()
+      dependency2.resolve()
+      await initPromise
+    })
+
+    it('finishes concurrent inits before starting the next priority', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const dependency1 = new DeferredInit()
+      const dependency2 = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => dependency1, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+          asyncInitPriority: 1,
+        }),
+        dependency2: asFunction(() => dependency2, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+          asyncInitPriority: 2,
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer)
+      await flushPromises()
+
+      expect(dependency1.isStarted).toBe(true)
+      expect(dependency2.isStarted).toBe(false)
+
+      dependency1.resolve()
+      await flushPromises()
+
+      expect(dependency2.isStarted).toBe(true)
+
+      dependency2.resolve()
+      await initPromise
+    })
+
+    it('runs sequential inits of the same priority in order while concurrent ones are pending', async () => {
+      const loggedMessages: string[] = []
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const concurrentDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => concurrentDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+        dependency3: asClass(AsyncInitClass, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer, {
+        enableDebugLogging: true,
+        loggerFn: (message) => loggedMessages.push(message),
+      })
+      await flushPromises()
+
+      expect(loggedMessages).toEqual([
+        'asyncInit: dependency2 - started',
+        'asyncInit: dependency1 - started',
+        'asyncInit: dependency2 - finished',
+        'asyncInit: dependency3 - started',
+        'asyncInit: dependency3 - finished',
+      ])
+
+      concurrentDependency.resolve()
+      await initPromise
+
+      expect(loggedMessages.at(-1)).toBe('asyncInit: dependency1 - finished (concurrent)')
+    })
+
+    it('rejects with a concurrent init failure only after the other concurrent inits settle', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      const failingDependency = new DeferredInit()
+      const slowDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => failingDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => slowDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+
+      let isRejected = false
+      const initPromise = asyncInit(diContainer).catch((error: unknown) => {
+        isRejected = true
+        return error
+      })
+      await flushPromises()
+      failingDependency.reject(initError)
+      await flushPromises()
+
+      expect(slowDependency.isStarted).toBe(true)
+      expect(isRejected).toBe(false)
+
+      slowDependency.resolve()
+
+      expect(await initPromise).toBe(initError)
+    })
+
+    it('waits for running concurrent inits when a sequential init of the same priority fails', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      const concurrentDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => concurrentDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      })
+
+      let isRejected = false
+      const initPromise = asyncInit(diContainer).catch((error: unknown) => {
+        isRejected = true
+        return error
+      })
+      await flushPromises()
+
+      expect(isRejected).toBe(false)
+
+      concurrentDependency.resolve()
+
+      expect(await initPromise).toBe(initError)
+    })
+
+    it('rejects with the earliest failure and starts no further inits once one has failed', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      const sequentialDependency = new DeferredInit()
+      const laterDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => sequentialDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+        dependency3: asFunction(
+          () => ({ asyncInit: () => Promise.reject(new Error('later failure')) }),
+          {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+          },
+        ),
+        dependency4: asFunction(() => laterDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer).catch((error: unknown) => error)
+      await flushPromises()
+      sequentialDependency.resolve()
+
+      expect(await initPromise).toBe(initError)
+      expect(laterDependency.isStarted).toBe(false)
+    })
+
+    it('supports a custom method with the concurrent option', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const dependency1 = {
+        isStarted: false,
+        start() {
+          this.isStarted = true
+          return Promise.resolve()
+        },
+      }
+      diContainer.register(
+        'dependency1',
+        asFunction(() => dependency1, {
+          lifetime: 'SINGLETON',
+          asyncInit: { method: 'start', concurrent: true },
+        }),
+      )
+
+      await asyncInit(diContainer)
+
+      expect(dependency1.isStarted).toBe(true)
+    })
+
+    it('runs at most maxConcurrency concurrent inits of a priority at a time', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const dependencies = [new DeferredInit(), new DeferredInit(), new DeferredInit()]
+      diContainer.register({
+        dependency1: asFunction(() => dependencies[0], {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => dependencies[1], {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency3: asFunction(() => dependencies[2], {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer, { maxConcurrency: 2 })
+      await flushPromises()
+
+      expect(dependencies.map((dependency) => dependency.isStarted)).toEqual([true, true, false])
+
+      dependencies[0].resolve()
+      await flushPromises()
+
+      expect(dependencies[2].isStarted).toBe(true)
+
+      dependencies[1].resolve()
+      dependencies[2].resolve()
+      await initPromise
+    })
+
+    it('does not start a concurrent init waiting for a slot once an init has failed', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      const failingDependency = new DeferredInit()
+      const queuedDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => failingDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => queuedDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer, { maxConcurrency: 1 }).catch(
+        (error: unknown) => error,
+      )
+      await flushPromises()
+      failingDependency.reject(initError)
+
+      expect(await initPromise).toBe(initError)
+      expect(queuedDependency.isStarted).toBe(false)
+    })
+
+    it('passes maxConcurrency from the AwilixManager config', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const dependency1 = new DeferredInit()
+      const dependency2 = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => dependency1, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => dependency2, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+      const manager = new AwilixManager({ diContainer, asyncInit: true, maxConcurrency: 1 })
+
+      const initPromise = manager.executeInit()
+      await flushPromises()
+
+      expect(dependency2.isStarted).toBe(false)
+
+      dependency1.resolve()
+      await flushPromises()
+      dependency2.resolve()
+      await initPromise
+    })
+
+    it.each([0, 1.5, -1, Number.NaN])('rejects maxConcurrency %s', async (maxConcurrency) => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+
+      await expect(asyncInit(diContainer, { maxConcurrency })).rejects.toThrow(
+        `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
+      )
+    })
+
+    it('rejects nonBlocking and concurrent set together before starting any init', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const earlierDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => earlierDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+          asyncInitPriority: 0,
+        }),
+        dependency2: asFunction(() => new DeferredInit(), {
+          lifetime: 'SINGLETON',
+          // @ts-expect-error the two options cannot be combined
+          asyncInit: { nonBlocking: true, concurrent: true },
+        }),
+      })
+
+      await expect(asyncInit(diContainer)).rejects.toThrow(
+        'Invalid asyncInit config for dependency2: "nonBlocking" and "concurrent" cannot both be set',
+      )
+      expect(earlierDependency.isStarted).toBe(false)
+    })
+
+    it('waits for the other concurrent inits when loggerFn throws after a concurrent init', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const fastDependency = new DeferredInit()
+      const slowDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => fastDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => slowDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+
+      let isRejected = false
+      const initPromise = asyncInit(diContainer, {
+        enableDebugLogging: true,
+        loggerFn: (message) => {
+          if (message.includes('finished')) {
+            throw new Error(message)
+          }
+        },
+      }).catch((error: unknown) => {
+        isRejected = true
+        return error
+      })
+      await flushPromises()
+      fastDependency.resolve()
+      await flushPromises()
+
+      expect(slowDependency.isStarted).toBe(true)
+      expect(isRejected).toBe(false)
+
+      slowDependency.resolve()
+
+      expect(await initPromise).toEqual(new Error('asyncInit: dependency1 - finished (concurrent)'))
+    })
+
+    it('passes a loggerFn error after a non-blocking init to onNonBlockingInitError', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asFunction(() => ({ asyncInit: () => Promise.resolve() }), {
+          lifetime: 'SINGLETON',
+          asyncInit: { nonBlocking: true },
+        }),
+      )
+      const loggerError = new Error('logger failed')
+      const onNonBlockingInitError = vi.fn()
+
+      await asyncInit(diContainer, {
+        enableDebugLogging: true,
+        loggerFn: (message) => {
+          if (message.includes('finished')) {
+            throw loggerError
+          }
+        },
+        onNonBlockingInitError,
+      })
+      await flushPromises()
+
+      expect(onNonBlockingInitError).toHaveBeenCalledWith('dependency1', loggerError)
     })
   })
 
