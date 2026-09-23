@@ -200,13 +200,20 @@ export async function asyncInit(
   }
 
   for (const priorityGroup of groupByPriority(dependenciesWithAsyncInit)) {
-    // Each concurrent init settles into `undefined` or `{ error }`, so a rejection that lands while
-    // a sequential init is still awaited is already handled and never reported as unhandled.
-    const concurrentInits: Promise<{ error: unknown } | undefined>[] = []
-    let sequentialFailure: { error: unknown } | undefined
+    // The first failure of the priority, in the order failures happen. A concurrent init records its
+    // rejection as soon as it lands, so it is handled even while a sequential init is still awaited.
+    let failure: { error: unknown } | undefined
+    const recordFailure = (error: unknown) => {
+      failure ??= { error }
+    }
+    const concurrentInits: Promise<void>[] = []
 
     try {
       for (const [key, description] of priorityGroup) {
+        if (failure) {
+          break
+        }
+
         logDebug(`asyncInit: ${key} - started`)
 
         const resolvedValue = diContainer.resolve(key)
@@ -225,11 +232,8 @@ export async function asyncInit(
         } else if (isConcurrent(description.asyncInit)) {
           concurrentInits.push(
             initPromise.then(
-              () => {
-                logDebug(`asyncInit: ${key} - finished (concurrent)`)
-                return undefined
-              },
-              (error: unknown) => ({ error }),
+              () => logDebug(`asyncInit: ${key} - finished (concurrent)`),
+              recordFailure,
             ),
           )
         } else {
@@ -238,15 +242,12 @@ export async function asyncInit(
         }
       }
     } catch (error) {
-      sequentialFailure = { error }
+      recordFailure(error)
     }
 
     // Concurrent inits that are already running are waited for even after a failure, so that
     // nothing is still initializing when the caller reacts to the error, e.g. by disposing.
-    const concurrentFailure = (await Promise.all(concurrentInits)).find(
-      (result) => result !== undefined,
-    )
-    const failure = sequentialFailure ?? concurrentFailure
+    await Promise.all(concurrentInits)
     if (failure) {
       throw failure.error
     }

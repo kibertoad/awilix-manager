@@ -1218,6 +1218,43 @@ describe('awilixManager', () => {
       expect(await initPromise).toBe(initError)
     })
 
+    it('rejects with the earliest failure and starts no further inits once one has failed', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const initError = new Error('init failed')
+      const sequentialDependency = new DeferredInit()
+      const laterDependency = new DeferredInit()
+      diContainer.register({
+        dependency1: asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+        dependency2: asFunction(() => sequentialDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: true,
+        }),
+        dependency3: asFunction(
+          () => ({ asyncInit: () => Promise.reject(new Error('later failure')) }),
+          {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+          },
+        ),
+        dependency4: asFunction(() => laterDependency, {
+          lifetime: 'SINGLETON',
+          asyncInit: { concurrent: true },
+        }),
+      })
+
+      const initPromise = asyncInit(diContainer).catch((error: unknown) => error)
+      await flushPromises()
+      sequentialDependency.resolve()
+
+      expect(await initPromise).toBe(initError)
+      expect(laterDependency.isStarted).toBe(false)
+    })
+
     it('supports a custom method with the concurrent option', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',

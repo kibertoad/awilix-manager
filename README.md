@@ -296,7 +296,7 @@ Priorities still act as barriers:
 - a concurrent init finishes before any dependency with a higher `asyncInitPriority` starts
 - dependencies of the same priority without the option still run one after another, in the usual order, while the concurrent ones run alongside them
 
-If any init of a priority fails, `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the first error. Nothing is left initializing in the background when the caller handles the failure.
+If any init of a priority fails, no further inits of that priority start. `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the error that happened first. Apart from `nonBlocking` inits, nothing is left initializing in the background when the caller handles the failure.
 
 ## Fetching dependencies based on tags
 
