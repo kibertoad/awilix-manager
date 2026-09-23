@@ -268,7 +268,7 @@ const awilixManager = new AwilixManager({
 })
 ```
 
-`asyncInit(diContainer, { onNonBlockingInitError })` accepts the same option. Method existence is validated synchronously before the async initialization starts, so missing methods still throw immediately.
+`asyncInit(diContainer, { onNonBlockingInitError })` accepts the same option. A missing method is detected before that dependency's init starts, and `asyncInit` rejects with it. If `concurrent` inits of the same priority are already running, the rejection waits for them to settle.
 
 ## Concurrent async initialization
 
@@ -296,7 +296,21 @@ Priorities still act as barriers:
 - a concurrent init finishes before any dependency with a higher `asyncInitPriority` starts
 - dependencies of the same priority without the option still run one after another, in the usual order, while the concurrent ones run alongside them
 
-If any init of a priority fails, no further inits of that priority start. `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the error that happened first. Apart from `nonBlocking` inits, nothing is left initializing in the background when the caller handles the failure.
+To cap how many concurrent inits of one priority run at the same time, pass `maxConcurrency`. The rest wait for a free slot, in the usual order. It defaults to no limit:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  maxConcurrency: 5,
+})
+```
+
+`asyncInit(diContainer, { maxConcurrency })` accepts the same option.
+
+`concurrent` and `nonBlocking` cannot be combined. `asyncInit` rejects a registration that sets both before it starts any init.
+
+If any init of a priority fails, no further inits of that priority start, including concurrent inits still waiting for a slot. `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the error that happened first. Apart from `nonBlocking` inits, nothing is left initializing in the background when the caller handles the failure.
 
 ## Fetching dependencies based on tags
 

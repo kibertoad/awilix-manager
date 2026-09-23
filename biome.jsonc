@@ -15,5 +15,18 @@
                 "useOptionalChain": "off"
             }
         }
-    }
+    },
+    "overrides": [
+        {
+            // Vendored from p-map; its control flow is kept as upstream wrote it, so fixes can be carried over.
+            "includes": ["lib/pMap.ts"],
+            "linter": {
+                "rules": {
+                    "complexity": {
+                        "noExcessiveCognitiveComplexity": "off"
+                    }
+                }
+            }
+        }
+    ]
 }
