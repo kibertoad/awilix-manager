@@ -268,6 +268,8 @@ const awilixManager = new AwilixManager({
 })
 ```
 
+The handler may throw, for example to rethrow the error when a failed background init should stop the app. What it throws becomes an unhandled rejection, which terminates the process under Node's default `--unhandled-rejections=throw`.
+
 `asyncInit(diContainer, { onNonBlockingInitError })` accepts the same option. A missing method is detected before that dependency's init starts, and `asyncInit` rejects with it. If `concurrent` inits of the same priority are already running, the rejection waits for them to settle.
 
 ## Concurrent async initialization

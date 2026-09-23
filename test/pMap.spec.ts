@@ -18,8 +18,12 @@ function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
+// Node times a timer from the event loop's cached clock, which can lag performance.now() by up
+// to a millisecond, so a timer may fire that much before its nominal delay has passed.
+const TIMER_CLOCK_SLACK_MS = 1
+
 function assertInRange(value: number, { start = 0, end }: { start?: number; end: number }) {
-  expect(value).toBeGreaterThanOrEqual(start)
+  expect(value).toBeGreaterThanOrEqual(start - TIMER_CLOCK_SLACK_MS)
   expect(value).toBeLessThanOrEqual(end)
 }
 
