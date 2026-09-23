@@ -2,6 +2,7 @@ export type {
   AsyncInitOptions,
   AwilixManagerConfig,
   Logger,
+  NonBlockingInitErrorHandler,
 } from './lib/awilixManager'
 export {
   AwilixManager,
