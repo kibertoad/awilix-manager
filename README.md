@@ -256,7 +256,47 @@ diContainer.register(
 )
 ```
 
-Note that errors thrown during non-blocking initialization will not propagate to the caller. Method existence is validated synchronously before the async initialization starts, so missing methods will still throw errors immediately.
+Errors thrown during non-blocking initialization do not propagate to the caller. They are passed to `onNonBlockingInitError`, which defaults to logging with `console.error`:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  asyncInit: true,
+  onNonBlockingInitError: (dependencyName, error) => {
+    logger.error({ err: error, dependencyName }, 'Background init failed')
+  },
+})
+```
+
+`asyncInit(diContainer, { onNonBlockingInitError })` accepts the same option. Method existence is validated synchronously before the async initialization starts, so missing methods still throw immediately.
+
+## Concurrent async initialization
+
+By default, dependencies are initialized one after another, even when they share a priority. When a group of dependencies does not depend on each other, for example message queue consumers that each set up their own queue, you can let them initialize at the same time with the `concurrent` option:
+
+```js
+diContainer.register(
+  'ordersConsumer',
+  asClass(OrdersConsumer, {
+    asyncInit: { method: 'start', concurrent: true },
+  }),
+)
+
+diContainer.register(
+  'invoicesConsumer',
+  asClass(InvoicesConsumer, {
+    asyncInit: { method: 'start', concurrent: true },
+  }),
+)
+```
+
+Priorities still act as barriers:
+
+- every dependency with a lower `asyncInitPriority` finishes initializing before a concurrent init starts
+- a concurrent init finishes before any dependency with a higher `asyncInitPriority` starts
+- dependencies of the same priority without the option still run one after another, in the usual order, while the concurrent ones run alongside them
+
+If any init of a priority fails, `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the first error. Nothing is left initializing in the background when the caller handles the failure.
 
 ## Fetching dependencies based on tags
 

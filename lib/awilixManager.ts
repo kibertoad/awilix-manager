@@ -21,6 +21,9 @@ type AsyncInitMethod<T> = boolean | string | AsyncInitFunction<T>
 type AsyncInitConfig<T> = {
   method?: AsyncInitMethod<T>
   nonBlocking?: boolean
+  // Runs alongside the other inits of the same priority instead of after them. Lower priorities
+  // still finish before it starts, and it finishes before any higher priority starts.
+  concurrent?: boolean
 }
 
 declare module 'awilix' {
@@ -37,6 +40,8 @@ declare module 'awilix' {
 
 export type Logger = (message: string) => void
 
+export type NonBlockingInitErrorHandler = (dependencyName: string, error: unknown) => void
+
 export type AwilixManagerConfig = {
   diContainer: AwilixContainer
   asyncInit?: boolean
@@ -45,6 +50,7 @@ export type AwilixManagerConfig = {
   strictBooleanEnforced?: boolean
   enableDebugLogging?: boolean
   loggerFn?: Logger
+  onNonBlockingInitError?: NonBlockingInitErrorHandler
 }
 
 export function asMockClass<T = object>(
@@ -91,6 +97,7 @@ export class AwilixManager {
       await asyncInit(this.config.diContainer, {
         enableDebugLogging: this.config.enableDebugLogging,
         loggerFn: this.config.loggerFn,
+        onNonBlockingInitError: this.config.onNonBlockingInitError,
       })
     }
   }
@@ -111,11 +118,15 @@ export class AwilixManager {
 export type AsyncInitOptions = {
   enableDebugLogging?: boolean
   loggerFn?: Logger
+  // Receives the rejection of a `nonBlocking` init, which nothing else awaits. Defaults to console.error.
+  onNonBlockingInitError?: NonBlockingInitErrorHandler
 }
 
 function isAsyncInitConfig(value: any): value is AsyncInitConfig<unknown> {
   return (
-    typeof value === 'object' && value !== null && ('method' in value || 'nonBlocking' in value)
+    typeof value === 'object' &&
+    value !== null &&
+    ('method' in value || 'nonBlocking' in value || 'concurrent' in value)
   )
 }
 
@@ -131,11 +142,39 @@ function isNonBlocking(asyncInit: any): boolean {
   return isAsyncInitConfig(asyncInit) && asyncInit.nonBlocking === true
 }
 
+function isConcurrent(asyncInit: any): boolean {
+  return isAsyncInitConfig(asyncInit) && asyncInit.concurrent === true
+}
+
+function logNonBlockingInitError(dependencyName: string, error: unknown): void {
+  console.error(`asyncInit: ${dependencyName} - failed (non-blocking)`, error)
+}
+
+type AsyncInitEntry = [string, Resolver<any>]
+
+function groupByPriority(sortedEntries: AsyncInitEntry[]): AsyncInitEntry[][] {
+  const groups: AsyncInitEntry[][] = []
+  let currentPriority: number | undefined
+  for (const entry of sortedEntries) {
+    const priority = entry[1].asyncInitPriority ?? 1
+    if (groups.length === 0 || priority !== currentPriority) {
+      groups.push([])
+      currentPriority = priority
+    }
+    groups[groups.length - 1].push(entry)
+  }
+  return groups
+}
+
 export async function asyncInit(
   diContainer: AwilixContainer,
   options: AsyncInitOptions = {},
 ): Promise<void> {
-  const { enableDebugLogging, loggerFn = console.log } = options
+  const {
+    enableDebugLogging,
+    loggerFn = console.log,
+    onNonBlockingInitError = logNonBlockingInitError,
+  } = options
 
   const dependenciesWithAsyncInit = Object.entries(diContainer.registrations)
     .filter((entry) => {
@@ -154,32 +193,62 @@ export async function asyncInit(
       return key1.localeCompare(key2)
     })
 
-  for (const [key, description] of dependenciesWithAsyncInit) {
+  const logDebug = (message: string) => {
     if (enableDebugLogging) {
-      loggerFn(`asyncInit: ${key} - started`)
+      loggerFn(message)
+    }
+  }
+
+  for (const priorityGroup of groupByPriority(dependenciesWithAsyncInit)) {
+    // Each concurrent init settles into `undefined` or `{ error }`, so a rejection that lands while
+    // a sequential init is still awaited is already handled and never reported as unhandled.
+    const concurrentInits: Promise<{ error: unknown } | undefined>[] = []
+    let sequentialFailure: { error: unknown } | undefined
+
+    try {
+      for (const [key, description] of priorityGroup) {
+        logDebug(`asyncInit: ${key} - started`)
+
+        const resolvedValue = diContainer.resolve(key)
+        const method = getAsyncInitMethod(description.asyncInit)
+
+        // Validate method existence synchronously before starting async init
+        validateAsyncInitMethod(resolvedValue, method, key)
+
+        const initPromise = executeAsyncInitMethod(resolvedValue, method, key, diContainer)
+
+        if (isNonBlocking(description.asyncInit)) {
+          initPromise.then(
+            () => logDebug(`asyncInit: ${key} - finished (non-blocking)`),
+            (error: unknown) => onNonBlockingInitError(key, error),
+          )
+        } else if (isConcurrent(description.asyncInit)) {
+          concurrentInits.push(
+            initPromise.then(
+              () => {
+                logDebug(`asyncInit: ${key} - finished (concurrent)`)
+                return undefined
+              },
+              (error: unknown) => ({ error }),
+            ),
+          )
+        } else {
+          await initPromise
+          logDebug(`asyncInit: ${key} - finished`)
+        }
+      }
+    } catch (error) {
+      sequentialFailure = { error }
     }
 
-    const resolvedValue = diContainer.resolve(key)
-    const method = getAsyncInitMethod(description.asyncInit)
-    const nonBlocking = isNonBlocking(description.asyncInit)
-
-    // Validate method existence synchronously before starting async init
-    validateAsyncInitMethod(resolvedValue, method, key)
-
-    const initPromise = executeAsyncInitMethod(resolvedValue, method, key, diContainer)
-
-    if (nonBlocking) {
-      // Fire-and-forget: don't await the promise
-      initPromise.then(() => {
-        if (enableDebugLogging) {
-          loggerFn(`asyncInit: ${key} - finished (non-blocking)`)
-        }
-      })
-    } else {
-      await initPromise
-      if (enableDebugLogging) {
-        loggerFn(`asyncInit: ${key} - finished`)
-      }
+    // Concurrent inits that are already running are waited for even after a failure, so that
+    // nothing is still initializing when the caller reacts to the error, e.g. by disposing.
+    const concurrentFailure = (await Promise.all(concurrentInits)).find(
+      (result) => result !== undefined,
+    )
+    const failure = sequentialFailure ?? concurrentFailure
+    if (failure) {
+      throw failure.error
     }
   }
 }
