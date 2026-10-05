@@ -316,820 +316,1056 @@ describe('awilixManager', () => {
   })
 
   describe('asyncInit', () => {
-    it('execute asyncInit on registered dependencies', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
+    describe('sequential', () => {
+      it('execute asyncInit on registered dependencies', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: 'asyncInit',
+            }),
+          )
+
+        await asyncInit(diContainer)
+
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+        expect(dependency1.isInitted).toBe(true)
+        expect(dependency2.isInitted).toBe(false)
+        expect(dependency3.isInitted).toBe(true)
       })
-        .register(
+
+      it('supports function as asyncInit', async () => {
+        type DiContainerType = {
+          dependency1: AsyncInitClass
+          dependency2: AsyncInitClass
+          dependency3: AsyncInitClass
+        }
+
+        const diContainer = createContainer<DiContainerType>({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register(
           'dependency1',
           asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
           }),
         )
-        .register(
+        diContainer.register(
           'dependency2',
           asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
           }),
         )
-        .register(
+        diContainer.register(
           'dependency3',
           asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
-            asyncInit: 'asyncInit',
+            asyncInit: (instance, _diContainer) => {
+              return instance.asyncInit(instance)
+            },
           }),
         )
 
-      await asyncInit(diContainer)
+        await asyncInit(diContainer)
 
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
 
-      expect(dependency1.isInitted).toBe(true)
-      expect(dependency2.isInitted).toBe(false)
-      expect(dependency3.isInitted).toBe(true)
-    })
-
-    it('supports function as asyncInit', async () => {
-      type DiContainerType = {
-        dependency1: AsyncInitClass
-        dependency2: AsyncInitClass
-        dependency3: AsyncInitClass
-      }
-
-      const diContainer = createContainer<DiContainerType>({
-        injectionMode: 'PROXY',
+        expect(dependency1.isInitted).toBe(true)
+        expect(dependency2.isInitted).toBe(false)
+        expect(dependency3.isInitted).toBe(true)
       })
-      diContainer.register(
-        'dependency1',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
+
+      it('throws a clear error when asyncInit method does not exist', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        }).register(
+          'dependency1',
+          asClass(AsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: 'dummy',
+          }),
+        )
+
+        await expect(() => asyncInit(diContainer)).rejects.toThrowError(
+          'Method dummy for asyncInit does not exist on dependency dependency1',
+        )
+      })
+
+      it('throws a clear error when default asyncInit method does not exist', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        }).register(
+          'dependency1',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+          }),
+        )
+
+        await expect(() => asyncInit(diContainer)).rejects.toThrowError(
+          'Method asyncInit does not exist on dependency dependency1',
+        )
+      })
+
+      it('execute asyncInit on registered dependencies and use dependencies from cradle', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: 'asyncInit',
+            }),
+          )
+
+        await asyncInit(diContainer)
+
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+        expect(dependency1.isInitted).toBe(true)
+        expect(dependency2.isInitted).toBe(false)
+        expect(dependency3.isInitted).toBe(true)
+
+        expect(dependency1.isUpdated).toBe(false)
+        expect(dependency2.isUpdated).toBe(2)
+        expect(dependency3.isUpdated).toBe(false)
+      })
+
+      it('execute getWithTags on registered dependencies with valid tags', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              tags: ['engine', 'google'],
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              tags: ['engine', 'google'],
+            }),
+          )
+
+        await asyncInit(diContainer)
+
+        const { dependency1, dependency2 } = diContainer.cradle
+        const expectItemFound = getWithTags(diContainer, ['engine'])
+        expect(expectItemFound).toStrictEqual({
+          dependency1: dependency1,
+          dependency2: dependency2,
+        })
+
+        const expectedItemNotFound = getWithTags(diContainer, ['engine', 'engine2'])
+        expect(expectedItemNotFound).toStrictEqual({})
+      })
+
+      it('execute awilixManager.getWithTags on registered dependencies with valid tags', () => {
+        class QueueConsumerHighPriorityClass {}
+        class QueueConsumerLowPriorityClass {}
+
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(QueueConsumerHighPriorityClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              tags: ['queue', 'high-priority'],
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(QueueConsumerLowPriorityClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              tags: ['queue', 'low-priority'],
+            }),
+          )
+
+        const awilixManager = new AwilixManager({
+          diContainer,
           asyncInit: true,
-        }),
-      )
-      diContainer.register(
-        'dependency2',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-        }),
-      )
-      diContainer.register(
-        'dependency3',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: (instance, _diContainer) => {
-            return instance.asyncInit(instance)
-          },
-        }),
-      )
+          asyncDispose: true,
+        })
 
-      await asyncInit(diContainer)
+        const { dependency1, dependency2 } = diContainer.cradle
+        const result1 = awilixManager.getWithTags(['queue'])
+        expect(result1).toStrictEqual({
+          dependency1: dependency1,
+          dependency2: dependency2,
+        })
 
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
+        const result2 = awilixManager.getWithTags(['queue', 'low-priority'])
+        expect(result2).toStrictEqual({
+          dependency2: dependency2,
+        })
+      })
 
-      expect(dependency1.isInitted).toBe(true)
-      expect(dependency2.isInitted).toBe(false)
-      expect(dependency3.isInitted).toBe(true)
-    })
+      it('does not execute asyncInit on registered dependencies if disabled', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              enabled: false,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              eagerInject: true,
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncInitClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: 'asyncInit',
+              enabled: false,
+            }),
+          )
 
-    it('throws a clear error when asyncInit method does not exist', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      }).register(
-        'dependency1',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: 'dummy',
-        }),
-      )
+        await asyncInit(diContainer)
 
-      await expect(() => asyncInit(diContainer)).rejects.toThrowError(
-        'Method dummy for asyncInit does not exist on dependency dependency1',
-      )
-    })
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
 
-    it('throws a clear error when default asyncInit method does not exist', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      }).register(
-        'dependency1',
-        asClass(AsyncDisposeClass, {
-          lifetime: 'SINGLETON',
+        expect(dependency1.isInitted).toBe(false)
+        expect(dependency2.isInitted).toBe(true)
+        expect(dependency3.isInitted).toBe(false)
+      })
+
+      it('execute asyncInit on registered dependencies in defined order', async () => {
+        isInittedGlobal = false
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncInitGetClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              asyncInitPriority: 2,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncInitSetClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              asyncInitPriority: 1,
+            }),
+          )
+
+        const manager = new AwilixManager({
+          diContainer,
           asyncInit: true,
-        }),
-      )
+        })
+        await manager.executeInit()
 
-      await expect(() => asyncInit(diContainer)).rejects.toThrowError(
-        'Method asyncInit does not exist on dependency dependency1',
-      )
-    })
+        const { dependency1: _1, dependency2: _2 } = diContainer.cradle
 
-    it('execute asyncInit on registered dependencies and use dependencies from cradle', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
+        expect(isInittedGlobal).toBe(true)
       })
-        .register(
+
+      it('execute asyncInit on registered dependencies with a deterministic order tiebreaking', async () => {
+        isInittedGlobal = false
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency2',
+            asClass(AsyncInitGetClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              asyncInitPriority: 1,
+            }),
+          )
+          .register(
+            'dependency1',
+            asClass(AsyncInitSetClass, {
+              lifetime: 'SINGLETON',
+              asyncInit: true,
+              asyncInitPriority: 1,
+            }),
+          )
+
+        const manager = new AwilixManager({
+          diContainer,
+          asyncInit: true,
+        })
+        await manager.executeInit()
+
+        const { dependency1: _1, dependency2: _2 } = diContainer.cradle
+
+        expect(isInittedGlobal).toBe(true)
+      })
+
+      it('logs dependency names when debug logging is enabled', async () => {
+        const loggedMessages: string[] = []
+        const customLogger = (message: string) => {
+          loggedMessages.push(message)
+        }
+
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register(
           'dependency1',
           asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
           }),
         )
-        .register(
-          'dependency2',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-          }),
-        )
-        .register(
-          'dependency3',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: 'asyncInit',
-          }),
-        )
-
-      await asyncInit(diContainer)
-
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
-
-      expect(dependency1.isInitted).toBe(true)
-      expect(dependency2.isInitted).toBe(false)
-      expect(dependency3.isInitted).toBe(true)
-
-      expect(dependency1.isUpdated).toBe(false)
-      expect(dependency2.isUpdated).toBe(2)
-      expect(dependency3.isUpdated).toBe(false)
-    })
-
-    it('execute getWithTags on registered dependencies with valid tags', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            tags: ['engine', 'google'],
-          }),
-        )
-        .register(
-          'dependency2',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            tags: ['engine', 'google'],
-          }),
-        )
-
-      await asyncInit(diContainer)
-
-      const { dependency1, dependency2 } = diContainer.cradle
-      const expectItemFound = getWithTags(diContainer, ['engine'])
-      expect(expectItemFound).toStrictEqual({
-        dependency1: dependency1,
-        dependency2: dependency2,
-      })
-
-      const expectedItemNotFound = getWithTags(diContainer, ['engine', 'engine2'])
-      expect(expectedItemNotFound).toStrictEqual({})
-    })
-
-    it('execute awilixManager.getWithTags on registered dependencies with valid tags', () => {
-      class QueueConsumerHighPriorityClass {}
-      class QueueConsumerLowPriorityClass {}
-
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(QueueConsumerHighPriorityClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            tags: ['queue', 'high-priority'],
-          }),
-        )
-        .register(
-          'dependency2',
-          asClass(QueueConsumerLowPriorityClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            tags: ['queue', 'low-priority'],
-          }),
-        )
-
-      const awilixManager = new AwilixManager({
-        diContainer,
-        asyncInit: true,
-        asyncDispose: true,
-      })
-
-      const { dependency1, dependency2 } = diContainer.cradle
-      const result1 = awilixManager.getWithTags(['queue'])
-      expect(result1).toStrictEqual({
-        dependency1: dependency1,
-        dependency2: dependency2,
-      })
-
-      const result2 = awilixManager.getWithTags(['queue', 'low-priority'])
-      expect(result2).toStrictEqual({
-        dependency2: dependency2,
-      })
-    })
-
-    it('does not execute asyncInit on registered dependencies if disabled', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            enabled: false,
-          }),
-        )
-        .register(
+        diContainer.register(
           'dependency2',
           asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
-            eagerInject: true,
-          }),
-        )
-        .register(
-          'dependency3',
-          asClass(AsyncInitClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: 'asyncInit',
-            enabled: false,
           }),
         )
 
-      await asyncInit(diContainer)
+        await asyncInit(diContainer, {
+          enableDebugLogging: true,
+          loggerFn: customLogger,
+        })
 
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
-
-      expect(dependency1.isInitted).toBe(false)
-      expect(dependency2.isInitted).toBe(true)
-      expect(dependency3.isInitted).toBe(false)
-    })
-
-    it('execute asyncInit on registered dependencies in defined order', async () => {
-      isInittedGlobal = false
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
+        expect(loggedMessages).toEqual([
+          'asyncInit: dependency1 - started',
+          'asyncInit: dependency1 - finished',
+          'asyncInit: dependency2 - started',
+          'asyncInit: dependency2 - finished',
+        ])
       })
-        .register(
+
+      it('does not log when debug logging is disabled', async () => {
+        const loggedMessages: string[] = []
+        const customLogger = (message: string) => {
+          loggedMessages.push(message)
+        }
+
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register(
           'dependency1',
-          asClass(AsyncInitGetClass, {
+          asClass(AsyncInitSetClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: true,
+          }),
+        )
+
+        await asyncInit(diContainer, {
+          enableDebugLogging: false,
+          loggerFn: customLogger,
+        })
+
+        expect(loggedMessages).toEqual([])
+      })
+
+      it('logs dependency names via AwilixManager when debug logging is enabled', async () => {
+        const loggedMessages: string[] = []
+        const customLogger = (message: string) => {
+          loggedMessages.push(message)
+        }
+
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register(
+          'dependency1',
+          asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
             asyncInitPriority: 2,
           }),
         )
-        .register(
+        diContainer.register(
           'dependency2',
-          asClass(AsyncInitSetClass, {
+          asClass(AsyncInitClass, {
             lifetime: 'SINGLETON',
             asyncInit: true,
             asyncInitPriority: 1,
           }),
         )
 
-      const manager = new AwilixManager({
-        diContainer,
-        asyncInit: true,
+        const manager = new AwilixManager({
+          diContainer,
+          asyncInit: true,
+          enableDebugLogging: true,
+          loggerFn: customLogger,
+        })
+        await manager.executeInit()
+
+        expect(loggedMessages).toEqual([
+          'asyncInit: dependency2 - started',
+          'asyncInit: dependency2 - finished',
+          'asyncInit: dependency1 - started',
+          'asyncInit: dependency1 - finished',
+        ])
       })
-      await manager.executeInit()
 
-      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
+      it('supports object syntax with method only (blocking by default)', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
 
-      expect(isInittedGlobal).toBe(true)
-    })
+        let initFinished = false
 
-    it('execute asyncInit on registered dependencies with a deterministic order tiebreaking', async () => {
-      isInittedGlobal = false
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency2',
-          asClass(AsyncInitGetClass, {
-            lifetime: 'SINGLETON',
-            asyncInit: true,
-            asyncInitPriority: 1,
-          }),
-        )
-        .register(
+        class CustomInitClass {
+          async customInit() {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            initFinished = true
+          }
+        }
+
+        diContainer.register(
           'dependency1',
-          asClass(AsyncInitSetClass, {
+          asClass(CustomInitClass, {
             lifetime: 'SINGLETON',
-            asyncInit: true,
-            asyncInitPriority: 1,
+            asyncInit: { method: 'customInit' },
           }),
         )
 
-      const manager = new AwilixManager({
-        diContainer,
-        asyncInit: true,
-      })
-      await manager.executeInit()
-
-      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
-
-      expect(isInittedGlobal).toBe(true)
-    })
-
-    it('logs dependency names when debug logging is enabled', async () => {
-      const loggedMessages: string[] = []
-      const customLogger = (message: string) => {
-        loggedMessages.push(message)
-      }
-
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      diContainer.register(
-        'dependency1',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: true,
-        }),
-      )
-      diContainer.register(
-        'dependency2',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: true,
-        }),
-      )
-
-      await asyncInit(diContainer, {
-        enableDebugLogging: true,
-        loggerFn: customLogger,
-      })
-
-      expect(loggedMessages).toEqual([
-        'asyncInit: dependency1 - started',
-        'asyncInit: dependency1 - finished',
-        'asyncInit: dependency2 - started',
-        'asyncInit: dependency2 - finished',
-      ])
-    })
-
-    it('does not log when debug logging is disabled', async () => {
-      const loggedMessages: string[] = []
-      const customLogger = (message: string) => {
-        loggedMessages.push(message)
-      }
-
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      diContainer.register(
-        'dependency1',
-        asClass(AsyncInitSetClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: true,
-        }),
-      )
-
-      await asyncInit(diContainer, {
-        enableDebugLogging: false,
-        loggerFn: customLogger,
-      })
-
-      expect(loggedMessages).toEqual([])
-    })
-
-    it('logs dependency names via AwilixManager when debug logging is enabled', async () => {
-      const loggedMessages: string[] = []
-      const customLogger = (message: string) => {
-        loggedMessages.push(message)
-      }
-
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      diContainer.register(
-        'dependency1',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: true,
-          asyncInitPriority: 2,
-        }),
-      )
-      diContainer.register(
-        'dependency2',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: true,
-          asyncInitPriority: 1,
-        }),
-      )
-
-      const manager = new AwilixManager({
-        diContainer,
-        asyncInit: true,
-        enableDebugLogging: true,
-        loggerFn: customLogger,
-      })
-      await manager.executeInit()
-
-      expect(loggedMessages).toEqual([
-        'asyncInit: dependency2 - started',
-        'asyncInit: dependency2 - finished',
-        'asyncInit: dependency1 - started',
-        'asyncInit: dependency1 - finished',
-      ])
-    })
-
-    it('supports object syntax with nonBlocking option using default method', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      let initStarted = false
-      let initFinished = false
-
-      class SlowAsyncInitClass {
-        async asyncInit() {
-          initStarted = true
-          await new Promise((resolve) => setTimeout(resolve, 50))
-          initFinished = true
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(SlowAsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: true },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      // Init should have started but not finished yet
-      expect(initStarted).toBe(true)
-      expect(initFinished).toBe(false)
-
-      // Wait for the async init to complete
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      expect(initFinished).toBe(true)
-    })
-
-    it('supports object syntax with nonBlocking option using custom method name', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      let initStarted = false
-      let initFinished = false
-
-      class SlowCustomInitClass {
-        async customInit() {
-          initStarted = true
-          await new Promise((resolve) => setTimeout(resolve, 50))
-          initFinished = true
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(SlowCustomInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { method: 'customInit', nonBlocking: true },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      // Init should have started but not finished yet
-      expect(initStarted).toBe(true)
-      expect(initFinished).toBe(false)
-
-      // Wait for the async init to complete
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      expect(initFinished).toBe(true)
-    })
-
-    it('supports object syntax with nonBlocking option using custom function', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      let initStarted = false
-      let initFinished = false
-
-      class SlowInitClass {
-        async doInit() {
-          initStarted = true
-          await new Promise((resolve) => setTimeout(resolve, 50))
-          initFinished = true
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(SlowInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: {
-            method: (instance) => instance.doInit(),
-            nonBlocking: true,
-          },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      // Init should have started but not finished yet
-      expect(initStarted).toBe(true)
-      expect(initFinished).toBe(false)
-
-      // Wait for the async init to complete
-      await new Promise((resolve) => setTimeout(resolve, 100))
-      expect(initFinished).toBe(true)
-    })
-
-    it('supports object syntax with method only (blocking by default)', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      let initFinished = false
-
-      class CustomInitClass {
-        async customInit() {
-          await new Promise((resolve) => setTimeout(resolve, 10))
-          initFinished = true
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(CustomInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { method: 'customInit' },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      // Init should have finished because it's blocking
-      expect(initFinished).toBe(true)
-    })
-
-    it('supports object syntax with method explicitly disabled (method: false)', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      let initCalled = false
-
-      class CustomInitClass {
-        asyncInit() {
-          initCalled = true
-          return Promise.resolve()
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(CustomInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { method: false },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      // No init method should be executed when method is explicitly false
-      expect(initCalled).toBe(false)
-    })
-
-    it('supports object syntax with nonBlocking: false (blocking)', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      let initFinished = false
-
-      class SlowAsyncInitClass {
-        async asyncInit() {
-          await new Promise((resolve) => setTimeout(resolve, 10))
-          initFinished = true
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(SlowAsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: false },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      // Init should have finished because it's blocking
-      expect(initFinished).toBe(true)
-    })
-
-    it('logs non-blocking dependencies with correct message', async () => {
-      const loggedMessages: string[] = []
-      const customLogger = (message: string) => {
-        loggedMessages.push(message)
-      }
-
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      class SlowAsyncInitClass {
-        async asyncInit() {
-          await new Promise((resolve) => setTimeout(resolve, 10))
-        }
-      }
-
-      diContainer.register(
-        'dependency1',
-        asClass(SlowAsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: true },
-        }),
-      )
-
-      await asyncInit(diContainer, {
-        enableDebugLogging: true,
-        loggerFn: customLogger,
-      })
-
-      // Only started message should be logged immediately
-      expect(loggedMessages).toEqual(['asyncInit: dependency1 - started'])
-
-      // Wait for the async init to complete
-      await new Promise((resolve) => setTimeout(resolve, 50))
-
-      expect(loggedMessages).toEqual([
-        'asyncInit: dependency1 - started',
-        'asyncInit: dependency1 - finished (non-blocking)',
-      ])
-    })
-
-    it('throws error when method does not exist with object syntax', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      diContainer.register(
-        'dependency1',
-        asClass(AsyncInitClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { method: 'nonExistentMethod', nonBlocking: true },
-        }),
-      )
-
-      await expect(() => asyncInit(diContainer)).rejects.toThrowError(
-        'Method nonExistentMethod for asyncInit does not exist on dependency dependency1',
-      )
-    })
-
-    it('throws error when default asyncInit method does not exist with object syntax', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      diContainer.register(
-        'dependency1',
-        asClass(AsyncDisposeClass, {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: true },
-        }),
-      )
-
-      await expect(() => asyncInit(diContainer)).rejects.toThrowError(
-        'Method asyncInit does not exist on dependency dependency1',
-      )
-    })
-
-    it('passes a non-blocking init failure to onNonBlockingInitError', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const initError = new Error('init failed')
-      diContainer.register(
-        'dependency1',
-        asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: true },
-        }),
-      )
-      const onNonBlockingInitError = vi.fn()
-
-      const manager = new AwilixManager({
-        diContainer,
-        asyncInit: true,
-        onNonBlockingInitError,
-      })
-      await manager.executeInit()
-      await flushPromises()
-
-      expect(onNonBlockingInitError).toHaveBeenCalledWith('dependency1', initError)
-    })
-
-    it('logs a non-blocking init failure with console.error by default', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const initError = new Error('init failed')
-      diContainer.register(
-        'dependency1',
-        asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: true },
-        }),
-      )
-
-      try {
         await asyncInit(diContainer)
+
+        // Init should have finished because it's blocking
+        expect(initFinished).toBe(true)
+      })
+
+      it('supports object syntax with method explicitly disabled (method: false)', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        let initCalled = false
+
+        class CustomInitClass {
+          asyncInit() {
+            initCalled = true
+            return Promise.resolve()
+          }
+        }
+
+        diContainer.register(
+          'dependency1',
+          asClass(CustomInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { method: false },
+          }),
+        )
+
+        await asyncInit(diContainer)
+
+        // No init method should be executed when method is explicitly false
+        expect(initCalled).toBe(false)
+      })
+
+      it('supports object syntax with nonBlocking: false (blocking)', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        let initFinished = false
+
+        class SlowAsyncInitClass {
+          async asyncInit() {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+            initFinished = true
+          }
+        }
+
+        diContainer.register(
+          'dependency1',
+          asClass(SlowAsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: false },
+          }),
+        )
+
+        await asyncInit(diContainer)
+
+        // Init should have finished because it's blocking
+        expect(initFinished).toBe(true)
+      })
+    })
+
+    describe('non-blocking', () => {
+      it('supports object syntax with nonBlocking option using default method', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        let initStarted = false
+        let initFinished = false
+
+        class SlowAsyncInitClass {
+          async asyncInit() {
+            initStarted = true
+            await new Promise((resolve) => setTimeout(resolve, 50))
+            initFinished = true
+          }
+        }
+
+        diContainer.register(
+          'dependency1',
+          asClass(SlowAsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: true },
+          }),
+        )
+
+        await asyncInit(diContainer)
+
+        // Init should have started but not finished yet
+        expect(initStarted).toBe(true)
+        expect(initFinished).toBe(false)
+
+        // Wait for the async init to complete
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        expect(initFinished).toBe(true)
+      })
+
+      it('supports object syntax with nonBlocking option using custom method name', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        let initStarted = false
+        let initFinished = false
+
+        class SlowCustomInitClass {
+          async customInit() {
+            initStarted = true
+            await new Promise((resolve) => setTimeout(resolve, 50))
+            initFinished = true
+          }
+        }
+
+        diContainer.register(
+          'dependency1',
+          asClass(SlowCustomInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { method: 'customInit', nonBlocking: true },
+          }),
+        )
+
+        await asyncInit(diContainer)
+
+        // Init should have started but not finished yet
+        expect(initStarted).toBe(true)
+        expect(initFinished).toBe(false)
+
+        // Wait for the async init to complete
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        expect(initFinished).toBe(true)
+      })
+
+      it('supports object syntax with nonBlocking option using custom function', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        let initStarted = false
+        let initFinished = false
+
+        class SlowInitClass {
+          async doInit() {
+            initStarted = true
+            await new Promise((resolve) => setTimeout(resolve, 50))
+            initFinished = true
+          }
+        }
+
+        diContainer.register(
+          'dependency1',
+          asClass(SlowInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: {
+              method: (instance) => instance.doInit(),
+              nonBlocking: true,
+            },
+          }),
+        )
+
+        await asyncInit(diContainer)
+
+        // Init should have started but not finished yet
+        expect(initStarted).toBe(true)
+        expect(initFinished).toBe(false)
+
+        // Wait for the async init to complete
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        expect(initFinished).toBe(true)
+      })
+
+      it('logs non-blocking dependencies with correct message', async () => {
+        const loggedMessages: string[] = []
+        const customLogger = (message: string) => {
+          loggedMessages.push(message)
+        }
+
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        class SlowAsyncInitClass {
+          async asyncInit() {
+            await new Promise((resolve) => setTimeout(resolve, 10))
+          }
+        }
+
+        diContainer.register(
+          'dependency1',
+          asClass(SlowAsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: true },
+          }),
+        )
+
+        await asyncInit(diContainer, {
+          enableDebugLogging: true,
+          loggerFn: customLogger,
+        })
+
+        // Only started message should be logged immediately
+        expect(loggedMessages).toEqual(['asyncInit: dependency1 - started'])
+
+        // Wait for the async init to complete
+        await new Promise((resolve) => setTimeout(resolve, 50))
+
+        expect(loggedMessages).toEqual([
+          'asyncInit: dependency1 - started',
+          'asyncInit: dependency1 - finished (non-blocking)',
+        ])
+      })
+
+      it('throws error when method does not exist with object syntax', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        diContainer.register(
+          'dependency1',
+          asClass(AsyncInitClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { method: 'nonExistentMethod', nonBlocking: true },
+          }),
+        )
+
+        await expect(() => asyncInit(diContainer)).rejects.toThrowError(
+          'Method nonExistentMethod for asyncInit does not exist on dependency dependency1',
+        )
+      })
+
+      it('throws error when default asyncInit method does not exist with object syntax', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        diContainer.register(
+          'dependency1',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: true },
+          }),
+        )
+
+        await expect(() => asyncInit(diContainer)).rejects.toThrowError(
+          'Method asyncInit does not exist on dependency dependency1',
+        )
+      })
+
+      it('passes a non-blocking init failure to onNonBlockingInitError', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const initError = new Error('init failed')
+        diContainer.register(
+          'dependency1',
+          asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: true },
+          }),
+        )
+        const onNonBlockingInitError = vi.fn()
+
+        const manager = new AwilixManager({
+          diContainer,
+          asyncInit: true,
+          onNonBlockingInitError,
+        })
+        await manager.executeInit()
         await flushPromises()
 
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          'asyncInit: dependency1 - failed (non-blocking)',
-          initError,
+        expect(onNonBlockingInitError).toHaveBeenCalledWith('dependency1', initError)
+      })
+
+      it('logs a non-blocking init failure with console.error by default', async () => {
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const initError = new Error('init failed')
+        diContainer.register(
+          'dependency1',
+          asFunction(() => ({ asyncInit: () => Promise.reject(initError) }), {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: true },
+          }),
         )
-      } finally {
-        consoleErrorSpy.mockRestore()
-      }
+
+        try {
+          await asyncInit(diContainer)
+          await flushPromises()
+
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'asyncInit: dependency1 - failed (non-blocking)',
+            initError,
+          )
+        } finally {
+          consoleErrorSpy.mockRestore()
+        }
+      })
+
+      it('passes a loggerFn error after a non-blocking init to onNonBlockingInitError', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register(
+          'dependency1',
+          asFunction(() => ({ asyncInit: () => Promise.resolve() }), {
+            lifetime: 'SINGLETON',
+            asyncInit: { nonBlocking: true },
+          }),
+        )
+        const loggerError = new Error('logger failed')
+        const onNonBlockingInitError = vi.fn()
+
+        await asyncInit(diContainer, {
+          enableDebugLogging: true,
+          loggerFn: (message) => {
+            if (message.includes('finished')) {
+              throw loggerError
+            }
+          },
+          onNonBlockingInitError,
+        })
+        await flushPromises()
+
+        expect(onNonBlockingInitError).toHaveBeenCalledWith('dependency1', loggerError)
+      })
     })
-  })
 
-  describe('asyncInit with concurrent option', () => {
-    it('runs concurrent inits of the same priority at the same time', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const dependency1 = new DeferredInit()
-      const dependency2 = new DeferredInit()
-      diContainer.register({
-        dependency1: asFunction(() => dependency1, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency2: asFunction(() => dependency2, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-      })
+    describe('concurrent', () => {
+      it('runs concurrent inits of the same priority at the same time', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = new DeferredInit()
+        const dependency2 = new DeferredInit()
+        diContainer.register({
+          dependency1: asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency2: asFunction(() => dependency2, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+        })
 
-      const initPromise = asyncInit(diContainer)
-      await flushPromises()
+        const initPromise = asyncInit(diContainer)
+        await flushPromises()
 
-      expect(dependency1.isStarted).toBe(true)
-      expect(dependency2.isStarted).toBe(true)
+        expect(dependency1.isStarted).toBe(true)
+        expect(dependency2.isStarted).toBe(true)
 
-      dependency1.resolve()
-      dependency2.resolve()
-      await initPromise
-    })
-
-    it('finishes concurrent inits before starting the next priority', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const dependency1 = new DeferredInit()
-      const dependency2 = new DeferredInit()
-      diContainer.register({
-        dependency1: asFunction(() => dependency1, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-          asyncInitPriority: 1,
-        }),
-        dependency2: asFunction(() => dependency2, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-          asyncInitPriority: 2,
-        }),
+        dependency1.resolve()
+        dependency2.resolve()
+        await initPromise
       })
 
-      const initPromise = asyncInit(diContainer)
-      await flushPromises()
+      it('finishes concurrent inits before starting the next priority', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = new DeferredInit()
+        const dependency2 = new DeferredInit()
+        diContainer.register({
+          dependency1: asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+            asyncInitPriority: 1,
+          }),
+          dependency2: asFunction(() => dependency2, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+            asyncInitPriority: 2,
+          }),
+        })
 
-      expect(dependency1.isStarted).toBe(true)
-      expect(dependency2.isStarted).toBe(false)
+        const initPromise = asyncInit(diContainer)
+        await flushPromises()
 
-      dependency1.resolve()
-      await flushPromises()
+        expect(dependency1.isStarted).toBe(true)
+        expect(dependency2.isStarted).toBe(false)
 
-      expect(dependency2.isStarted).toBe(true)
+        dependency1.resolve()
+        await flushPromises()
 
-      dependency2.resolve()
-      await initPromise
+        expect(dependency2.isStarted).toBe(true)
+
+        dependency2.resolve()
+        await initPromise
+      })
+
+      it('rejects with a concurrent init failure only after the other concurrent inits settle', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const initError = new Error('init failed')
+        const failingDependency = new DeferredInit()
+        const slowDependency = new DeferredInit()
+        diContainer.register({
+          dependency1: asFunction(() => failingDependency, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency2: asFunction(() => slowDependency, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+        })
+
+        let isRejected = false
+        const initPromise = asyncInit(diContainer).catch((error: unknown) => {
+          isRejected = true
+          return error
+        })
+        await flushPromises()
+        failingDependency.reject(initError)
+        await flushPromises()
+
+        expect(slowDependency.isStarted).toBe(true)
+        expect(isRejected).toBe(false)
+
+        slowDependency.resolve()
+
+        expect(await initPromise).toBe(initError)
+      })
+
+      it('supports a custom method with the concurrent option', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = {
+          isStarted: false,
+          start() {
+            this.isStarted = true
+            return Promise.resolve()
+          },
+        }
+        diContainer.register(
+          'dependency1',
+          asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncInit: { method: 'start', concurrent: true },
+          }),
+        )
+
+        await asyncInit(diContainer)
+
+        expect(dependency1.isStarted).toBe(true)
+      })
+
+      it('runs at most maxConcurrency concurrent inits of a priority at a time', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependencies = [new DeferredInit(), new DeferredInit(), new DeferredInit()]
+        diContainer.register({
+          dependency1: asFunction(() => dependencies[0], {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency2: asFunction(() => dependencies[1], {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency3: asFunction(() => dependencies[2], {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+        })
+
+        const initPromise = asyncInit(diContainer, { maxConcurrency: 2 })
+        await flushPromises()
+
+        expect(dependencies.map((dependency) => dependency.isStarted)).toEqual([true, true, false])
+
+        dependencies[0].resolve()
+        await flushPromises()
+
+        expect(dependencies[2].isStarted).toBe(true)
+
+        dependencies[1].resolve()
+        dependencies[2].resolve()
+        await initPromise
+      })
+
+      it('does not start a concurrent init waiting for a slot once an init has failed', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const initError = new Error('init failed')
+        const failingDependency = new DeferredInit()
+        const queuedDependency = new DeferredInit()
+        diContainer.register({
+          dependency1: asFunction(() => failingDependency, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency2: asFunction(() => queuedDependency, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+        })
+
+        const initPromise = asyncInit(diContainer, { maxConcurrency: 1 }).catch(
+          (error: unknown) => error,
+        )
+        await flushPromises()
+        failingDependency.reject(initError)
+
+        expect(await initPromise).toBe(initError)
+        expect(queuedDependency.isStarted).toBe(false)
+      })
+
+      it('passes maxConcurrency from the AwilixManager config', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = new DeferredInit()
+        const dependency2 = new DeferredInit()
+        diContainer.register({
+          dependency1: asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency2: asFunction(() => dependency2, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+        })
+        const manager = new AwilixManager({ diContainer, asyncInit: true, maxConcurrency: 1 })
+
+        const initPromise = manager.executeInit()
+        await flushPromises()
+
+        expect(dependency2.isStarted).toBe(false)
+
+        dependency1.resolve()
+        await flushPromises()
+        dependency2.resolve()
+        await initPromise
+      })
+
+      it.each([0, 1.5, -1, Number.NaN])('rejects maxConcurrency %s', async (maxConcurrency) => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        await expect(asyncInit(diContainer, { maxConcurrency })).rejects.toThrow(
+          `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
+        )
+      })
+
+      it('waits for the other concurrent inits when loggerFn throws after a concurrent init', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const fastDependency = new DeferredInit()
+        const slowDependency = new DeferredInit()
+        diContainer.register({
+          dependency1: asFunction(() => fastDependency, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+          dependency2: asFunction(() => slowDependency, {
+            lifetime: 'SINGLETON',
+            asyncInit: { concurrent: true },
+          }),
+        })
+
+        let isRejected = false
+        const initPromise = asyncInit(diContainer, {
+          enableDebugLogging: true,
+          loggerFn: (message) => {
+            if (message.includes('finished')) {
+              throw new Error(message)
+            }
+          },
+        }).catch((error: unknown) => {
+          isRejected = true
+          return error
+        })
+        await flushPromises()
+        fastDependency.resolve()
+        await flushPromises()
+
+        expect(slowDependency.isStarted).toBe(true)
+        expect(isRejected).toBe(false)
+
+        slowDependency.resolve()
+
+        expect(await initPromise).toEqual(
+          new Error('asyncInit: dependency1 - finished (concurrent)'),
+        )
+      })
     })
 
     it('runs sequential inits of the same priority in order while concurrent ones are pending', async () => {
@@ -1171,41 +1407,6 @@ describe('awilixManager', () => {
       await initPromise
 
       expect(loggedMessages.at(-1)).toBe('asyncInit: dependency1 - finished (concurrent)')
-    })
-
-    it('rejects with a concurrent init failure only after the other concurrent inits settle', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const initError = new Error('init failed')
-      const failingDependency = new DeferredInit()
-      const slowDependency = new DeferredInit()
-      diContainer.register({
-        dependency1: asFunction(() => failingDependency, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency2: asFunction(() => slowDependency, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-      })
-
-      let isRejected = false
-      const initPromise = asyncInit(diContainer).catch((error: unknown) => {
-        isRejected = true
-        return error
-      })
-      await flushPromises()
-      failingDependency.reject(initError)
-      await flushPromises()
-
-      expect(slowDependency.isStarted).toBe(true)
-      expect(isRejected).toBe(false)
-
-      slowDependency.resolve()
-
-      expect(await initPromise).toBe(initError)
     })
 
     it('waits for running concurrent inits when a sequential init of the same priority fails', async () => {
@@ -1276,132 +1477,6 @@ describe('awilixManager', () => {
       expect(laterDependency.isStarted).toBe(false)
     })
 
-    it('supports a custom method with the concurrent option', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const dependency1 = {
-        isStarted: false,
-        start() {
-          this.isStarted = true
-          return Promise.resolve()
-        },
-      }
-      diContainer.register(
-        'dependency1',
-        asFunction(() => dependency1, {
-          lifetime: 'SINGLETON',
-          asyncInit: { method: 'start', concurrent: true },
-        }),
-      )
-
-      await asyncInit(diContainer)
-
-      expect(dependency1.isStarted).toBe(true)
-    })
-
-    it('runs at most maxConcurrency concurrent inits of a priority at a time', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const dependencies = [new DeferredInit(), new DeferredInit(), new DeferredInit()]
-      diContainer.register({
-        dependency1: asFunction(() => dependencies[0], {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency2: asFunction(() => dependencies[1], {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency3: asFunction(() => dependencies[2], {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-      })
-
-      const initPromise = asyncInit(diContainer, { maxConcurrency: 2 })
-      await flushPromises()
-
-      expect(dependencies.map((dependency) => dependency.isStarted)).toEqual([true, true, false])
-
-      dependencies[0].resolve()
-      await flushPromises()
-
-      expect(dependencies[2].isStarted).toBe(true)
-
-      dependencies[1].resolve()
-      dependencies[2].resolve()
-      await initPromise
-    })
-
-    it('does not start a concurrent init waiting for a slot once an init has failed', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const initError = new Error('init failed')
-      const failingDependency = new DeferredInit()
-      const queuedDependency = new DeferredInit()
-      diContainer.register({
-        dependency1: asFunction(() => failingDependency, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency2: asFunction(() => queuedDependency, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-      })
-
-      const initPromise = asyncInit(diContainer, { maxConcurrency: 1 }).catch(
-        (error: unknown) => error,
-      )
-      await flushPromises()
-      failingDependency.reject(initError)
-
-      expect(await initPromise).toBe(initError)
-      expect(queuedDependency.isStarted).toBe(false)
-    })
-
-    it('passes maxConcurrency from the AwilixManager config', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const dependency1 = new DeferredInit()
-      const dependency2 = new DeferredInit()
-      diContainer.register({
-        dependency1: asFunction(() => dependency1, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency2: asFunction(() => dependency2, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-      })
-      const manager = new AwilixManager({ diContainer, asyncInit: true, maxConcurrency: 1 })
-
-      const initPromise = manager.executeInit()
-      await flushPromises()
-
-      expect(dependency2.isStarted).toBe(false)
-
-      dependency1.resolve()
-      await flushPromises()
-      dependency2.resolve()
-      await initPromise
-    })
-
-    it.each([0, 1.5, -1, Number.NaN])('rejects maxConcurrency %s', async (maxConcurrency) => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-
-      await expect(asyncInit(diContainer, { maxConcurrency })).rejects.toThrow(
-        `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
-      )
-    })
-
     it('rejects nonBlocking and concurrent set together before starting any init', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
@@ -1424,75 +1499,6 @@ describe('awilixManager', () => {
         'Invalid asyncInit config for dependency2: "nonBlocking" and "concurrent" cannot both be set',
       )
       expect(earlierDependency.isStarted).toBe(false)
-    })
-
-    it('waits for the other concurrent inits when loggerFn throws after a concurrent init', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      const fastDependency = new DeferredInit()
-      const slowDependency = new DeferredInit()
-      diContainer.register({
-        dependency1: asFunction(() => fastDependency, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-        dependency2: asFunction(() => slowDependency, {
-          lifetime: 'SINGLETON',
-          asyncInit: { concurrent: true },
-        }),
-      })
-
-      let isRejected = false
-      const initPromise = asyncInit(diContainer, {
-        enableDebugLogging: true,
-        loggerFn: (message) => {
-          if (message.includes('finished')) {
-            throw new Error(message)
-          }
-        },
-      }).catch((error: unknown) => {
-        isRejected = true
-        return error
-      })
-      await flushPromises()
-      fastDependency.resolve()
-      await flushPromises()
-
-      expect(slowDependency.isStarted).toBe(true)
-      expect(isRejected).toBe(false)
-
-      slowDependency.resolve()
-
-      expect(await initPromise).toEqual(new Error('asyncInit: dependency1 - finished (concurrent)'))
-    })
-
-    it('passes a loggerFn error after a non-blocking init to onNonBlockingInitError', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-      diContainer.register(
-        'dependency1',
-        asFunction(() => ({ asyncInit: () => Promise.resolve() }), {
-          lifetime: 'SINGLETON',
-          asyncInit: { nonBlocking: true },
-        }),
-      )
-      const loggerError = new Error('logger failed')
-      const onNonBlockingInitError = vi.fn()
-
-      await asyncInit(diContainer, {
-        enableDebugLogging: true,
-        loggerFn: (message) => {
-          if (message.includes('finished')) {
-            throw loggerError
-          }
-        },
-        onNonBlockingInitError,
-      })
-      await flushPromises()
-
-      expect(onNonBlockingInitError).toHaveBeenCalledWith('dependency1', loggerError)
     })
   })
 
