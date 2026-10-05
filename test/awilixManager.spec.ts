@@ -1719,6 +1719,23 @@ describe('awilixManager', () => {
         expect(isDisposedGlobal).toBe(true)
       })
 
+      it('supports object syntax with method explicitly disabled (method: false)', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register(
+          'dependency1',
+          asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { method: false },
+          }),
+        )
+
+        await asyncDispose(diContainer)
+
+        expect(diContainer.resolve<AsyncDisposeClass>('dependency1').isDisposed).toBe(false)
+      })
+
       it('rejects with the first failure and skips the remaining disposes without onDisposeError', async () => {
         const diContainer = createContainer({
           injectionMode: 'PROXY',
