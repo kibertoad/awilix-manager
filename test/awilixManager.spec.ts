@@ -103,6 +103,21 @@ class DeferredInit {
   }
 }
 
+// asyncDispose stays pending until the test settles it, so it can observe what runs in between
+class DeferredDispose {
+  isStarted = false
+  resolve: () => void = () => undefined
+  reject: (error: unknown) => void = () => undefined
+
+  asyncDispose() {
+    this.isStarted = true
+    return new Promise<void>((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+  }
+}
+
 const flushPromises = () => new Promise((resolve) => setImmediate(resolve))
 
 describe('asMockClass', () => {
@@ -1482,219 +1497,698 @@ describe('awilixManager', () => {
   })
 
   describe('asyncDispose', () => {
-    it('execute asyncDispose on registered dependencies', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
+    describe('sequential', () => {
+      it('execute asyncDispose on registered dependencies', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: 'asyncDispose',
+            }),
+          )
+
+        const manager = new AwilixManager({
+          diContainer,
+        })
+        await manager.executeDispose()
+
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+        expect(dependency1.isDisposed).toBe(true)
+        expect(dependency2.isDisposed).toBe(false)
+        expect(dependency3.isDisposed).toBe(true)
       })
-        .register(
-          'dependency1',
-          asClass(AsyncDisposeClass, {
+
+      it('execute asyncDispose defined as function on registered dependencies', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: (instance) => {
+                instance.isDisposed = true
+                return Promise.resolve()
+              },
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: 'asyncDispose',
+            }),
+          )
+
+        const manager = new AwilixManager({
+          diContainer,
+        })
+        await manager.executeDispose()
+
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+        expect(dependency1.isDisposed).toBe(true)
+        expect(dependency2.isDisposed).toBe(false)
+        expect(dependency3.isDisposed).toBe(true)
+      })
+
+      it('does not execute asyncDispose on registered dependencies if disabled', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+              enabled: false,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: 'asyncDispose',
+              enabled: false,
+            }),
+          )
+
+        const manager = new AwilixManager({
+          diContainer,
+        })
+        await manager.executeDispose()
+
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+        expect(dependency1.isDisposed).toBe(false)
+        expect(dependency2.isDisposed).toBe(true)
+        expect(dependency3.isDisposed).toBe(false)
+      })
+
+      it('does not execute asyncDispose on registered dependencies if undefined', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+              enabled: false,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+            }),
+          )
+          .register(
+            'dependency3',
+            asClass(AsyncDisposeClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: 'asyncDispose',
+              enabled: false,
+            }),
+          )
+
+        const manager = new AwilixManager({
+          diContainer,
+        })
+        await manager.executeDispose()
+
+        const { dependency1, dependency2, dependency3 } = diContainer.cradle
+
+        expect(dependency1.isDisposed).toBe(false)
+        expect(dependency2.isDisposed).toBe(true)
+        expect(dependency3.isDisposed).toBe(false)
+      })
+
+      it('execute asyncDispose on registered dependencies in defined order', async () => {
+        isDisposedGlobal = false
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency1',
+            asClass(AsyncDisposeGetClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+              asyncDisposePriority: 2,
+            }),
+          )
+          .register(
+            'dependency2',
+            asClass(AsyncDisposeSetClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+              asyncDisposePriority: 1,
+            }),
+          )
+
+        await asyncDispose(diContainer)
+
+        const { dependency1: _1, dependency2: _2 } = diContainer.cradle
+
+        expect(isDisposedGlobal).toBe(true)
+      })
+
+      it('execute asyncDispose on registered dependencies with deterministic tiebreaking', async () => {
+        isDisposedGlobal = false
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+          .register(
+            'dependency2',
+            asClass(AsyncDisposeGetClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+              asyncDisposePriority: 1,
+            }),
+          )
+          .register(
+            'dependency1',
+            asClass(AsyncDisposeSetClass, {
+              lifetime: 'SINGLETON',
+              asyncDispose: true,
+              asyncDisposePriority: 1,
+            }),
+          )
+
+        await asyncDispose(diContainer)
+
+        const { dependency1: _1, dependency2: _2 } = diContainer.cradle
+
+        expect(isDisposedGlobal).toBe(true)
+      })
+
+      it('rejects with the first failure and skips the remaining disposes without onDisposeError', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const disposeError = new Error('dispose failed')
+        const laterDependency = new DeferredDispose()
+        const nextPriorityDependency = new DeferredDispose()
+        diContainer.register({
+          dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(disposeError) }), {
             lifetime: 'SINGLETON',
             asyncDispose: true,
           }),
-        )
-        .register(
-          'dependency2',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-          }),
-        )
-        .register(
-          'dependency3',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: 'asyncDispose',
-          }),
-        )
-
-      const manager = new AwilixManager({
-        diContainer,
-      })
-      await manager.executeDispose()
-
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
-
-      expect(dependency1.isDisposed).toBe(true)
-      expect(dependency2.isDisposed).toBe(false)
-      expect(dependency3.isDisposed).toBe(true)
-    })
-
-    it('execute asyncDispose defined as function on registered dependencies', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: (instance) => {
-              instance.isDisposed = true
-              return Promise.resolve()
-            },
-          }),
-        )
-        .register(
-          'dependency2',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-          }),
-        )
-        .register(
-          'dependency3',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: 'asyncDispose',
-          }),
-        )
-
-      const manager = new AwilixManager({
-        diContainer,
-      })
-      await manager.executeDispose()
-
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
-
-      expect(dependency1.isDisposed).toBe(true)
-      expect(dependency2.isDisposed).toBe(false)
-      expect(dependency3.isDisposed).toBe(true)
-    })
-
-    it('does not execute asyncDispose on registered dependencies if disabled', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            enabled: false,
-          }),
-        )
-        .register(
-          'dependency2',
-          asClass(AsyncDisposeClass, {
+          dependency2: asFunction(() => laterDependency, {
             lifetime: 'SINGLETON',
             asyncDispose: true,
           }),
-        )
-        .register(
-          'dependency3',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: 'asyncDispose',
-            enabled: false,
-          }),
-        )
-
-      const manager = new AwilixManager({
-        diContainer,
-      })
-      await manager.executeDispose()
-
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
-
-      expect(dependency1.isDisposed).toBe(false)
-      expect(dependency2.isDisposed).toBe(true)
-      expect(dependency3.isDisposed).toBe(false)
-    })
-
-    it('does not execute asyncDispose on registered dependencies if undefined', async () => {
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            enabled: false,
-          }),
-        )
-        .register(
-          'dependency2',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-          }),
-        )
-        .register(
-          'dependency3',
-          asClass(AsyncDisposeClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: 'asyncDispose',
-            enabled: false,
-          }),
-        )
-
-      const manager = new AwilixManager({
-        diContainer,
-      })
-      await manager.executeDispose()
-
-      const { dependency1, dependency2, dependency3 } = diContainer.cradle
-
-      expect(dependency1.isDisposed).toBe(false)
-      expect(dependency2.isDisposed).toBe(true)
-      expect(dependency3.isDisposed).toBe(false)
-    })
-
-    it('execute asyncDispose on registered dependencies in defined order', async () => {
-      isInittedGlobal = false
-      const diContainer = createContainer({
-        injectionMode: 'PROXY',
-      })
-        .register(
-          'dependency1',
-          asClass(AsyncDisposeGetClass, {
+          dependency3: asFunction(() => nextPriorityDependency, {
             lifetime: 'SINGLETON',
             asyncDispose: true,
             asyncDisposePriority: 2,
           }),
-        )
-        .register(
-          'dependency2',
-          asClass(AsyncDisposeSetClass, {
+        })
+
+        await expect(asyncDispose(diContainer)).rejects.toBe(disposeError)
+        expect(laterDependency.isStarted).toBe(false)
+        expect(nextPriorityDependency.isStarted).toBe(false)
+      })
+
+      it('passes a missing dispose method to onDisposeError', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        diContainer.register({
+          dependency1: asFunction(() => ({}), {
             lifetime: 'SINGLETON',
             asyncDispose: true,
-            asyncDisposePriority: 1,
           }),
-        )
+          dependency2: asFunction(() => ({}), {
+            lifetime: 'SINGLETON',
+            asyncDispose: 'close',
+          }),
+        })
+        const onDisposeError = vi.fn()
 
-      await asyncDispose(diContainer)
+        await asyncDispose(diContainer, { onDisposeError })
 
-      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
+        expect(onDisposeError.mock.calls).toEqual([
+          ['dependency1', expect.any(TypeError)],
+          ['dependency2', expect.any(TypeError)],
+        ])
+      })
 
-      expect(isDisposedGlobal).toBe(true)
+      it('passes onDisposeError from the AwilixManager config', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const disposeError = new Error('dispose failed')
+        diContainer.register({
+          dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(disposeError) }), {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+          }),
+          dependency2: asClass(AsyncDisposeClass, {
+            lifetime: 'SINGLETON',
+            asyncDispose: true,
+          }),
+        })
+        const onDisposeError = vi.fn()
+        const manager = new AwilixManager({ diContainer, onDisposeError })
+
+        await manager.executeDispose()
+
+        expect(onDisposeError).toHaveBeenCalledWith('dependency1', disposeError)
+        expect(diContainer.resolve<AsyncDisposeClass>('dependency2').isDisposed).toBe(true)
+      })
     })
 
-    it('execute asyncDispose on registered dependencies with deterministic tiebreaking', async () => {
-      isInittedGlobal = false
+    describe('concurrent', () => {
+      it('runs concurrent disposes of the same priority at the same time', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = new DeferredDispose()
+        const dependency2 = new DeferredDispose()
+        diContainer.register({
+          dependency1: asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency2: asFunction(() => dependency2, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+        })
+
+        const disposePromise = asyncDispose(diContainer)
+        await flushPromises()
+
+        expect(dependency1.isStarted).toBe(true)
+        expect(dependency2.isStarted).toBe(true)
+
+        dependency1.resolve()
+        dependency2.resolve()
+        await disposePromise
+      })
+
+      it('supports custom method and function with the concurrent option', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = {
+          isClosed: false,
+          close() {
+            this.isClosed = true
+            return Promise.resolve()
+          },
+        }
+        const dependency2 = { isClosed: false }
+        diContainer.register({
+          dependency1: asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { method: 'close', concurrent: true },
+          }),
+          dependency2: asFunction(() => dependency2, {
+            lifetime: 'SINGLETON',
+            asyncDispose: {
+              method: (instance) => {
+                instance.isClosed = true
+                return Promise.resolve()
+              },
+              concurrent: true,
+            },
+          }),
+        })
+
+        await asyncDispose(diContainer)
+
+        expect(dependency1.isClosed).toBe(true)
+        expect(dependency2.isClosed).toBe(true)
+      })
+
+      it('runs at most maxConcurrency concurrent disposes of a priority at a time', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependencies = [new DeferredDispose(), new DeferredDispose(), new DeferredDispose()]
+        diContainer.register({
+          dependency1: asFunction(() => dependencies[0], {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency2: asFunction(() => dependencies[1], {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency3: asFunction(() => dependencies[2], {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+        })
+
+        const disposePromise = asyncDispose(diContainer, { maxConcurrency: 2 })
+        await flushPromises()
+
+        expect(dependencies.map((dependency) => dependency.isStarted)).toEqual([true, true, false])
+
+        dependencies[0].resolve()
+        await flushPromises()
+
+        expect(dependencies[2].isStarted).toBe(true)
+
+        dependencies[1].resolve()
+        dependencies[2].resolve()
+        await disposePromise
+      })
+
+      it('passes maxDisposeConcurrency from the AwilixManager config', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const dependency1 = new DeferredDispose()
+        const dependency2 = new DeferredDispose()
+        diContainer.register({
+          dependency1: asFunction(() => dependency1, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency2: asFunction(() => dependency2, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+        })
+        const manager = new AwilixManager({
+          diContainer,
+          maxConcurrency: 2,
+          maxDisposeConcurrency: 1,
+        })
+
+        const disposePromise = manager.executeDispose()
+        await flushPromises()
+
+        expect(dependency2.isStarted).toBe(false)
+
+        dependency1.resolve()
+        await flushPromises()
+        dependency2.resolve()
+        await disposePromise
+      })
+
+      it.each([0, 1.5, -1, Number.NaN])('rejects maxConcurrency %s', async (maxConcurrency) => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        await expect(asyncDispose(diContainer, { maxConcurrency })).rejects.toThrow(
+          `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
+        )
+      })
+
+      it('rejects with a concurrent dispose failure only after the other concurrent disposes settle without onDisposeError', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const disposeError = new Error('dispose failed')
+        const failingDependency = new DeferredDispose()
+        const slowDependency = new DeferredDispose()
+        diContainer.register({
+          dependency1: asFunction(() => failingDependency, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency2: asFunction(() => slowDependency, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+        })
+
+        let isRejected = false
+        const disposePromise = asyncDispose(diContainer).catch((error: unknown) => {
+          isRejected = true
+          return error
+        })
+        await flushPromises()
+        failingDependency.reject(disposeError)
+        await flushPromises()
+
+        expect(slowDependency.isStarted).toBe(true)
+        expect(isRejected).toBe(false)
+
+        slowDependency.resolve()
+
+        expect(await disposePromise).toBe(disposeError)
+      })
+
+      it('starts a concurrent dispose waiting for a slot even after another dispose failed', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const failingDependency = new DeferredDispose()
+        const queuedDependency = new DeferredDispose()
+        diContainer.register({
+          dependency1: asFunction(() => failingDependency, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency2: asFunction(() => queuedDependency, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+        })
+        const onDisposeError = vi.fn()
+
+        const disposePromise = asyncDispose(diContainer, { maxConcurrency: 1, onDisposeError })
+        await flushPromises()
+        failingDependency.reject(new Error('dispose failed'))
+        await flushPromises()
+
+        expect(queuedDependency.isStarted).toBe(true)
+
+        queuedDependency.resolve()
+        await disposePromise
+
+        expect(onDisposeError).toHaveBeenCalledTimes(1)
+      })
+
+      it('rejects with an error thrown by onDisposeError after the running concurrent disposes settle', async () => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+        const handlerError = new Error('handler failed')
+        const slowDependency = new DeferredDispose()
+        diContainer.register({
+          dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(new Error()) }), {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+          dependency2: asFunction(() => slowDependency, {
+            lifetime: 'SINGLETON',
+            asyncDispose: { concurrent: true },
+          }),
+        })
+
+        let isRejected = false
+        const disposePromise = asyncDispose(diContainer, {
+          onDisposeError: () => {
+            throw handlerError
+          },
+        }).catch((error: unknown) => {
+          isRejected = true
+          return error
+        })
+        await flushPromises()
+
+        expect(slowDependency.isStarted).toBe(true)
+        expect(isRejected).toBe(false)
+
+        slowDependency.resolve()
+
+        expect(await disposePromise).toBe(handlerError)
+      })
+    })
+
+    it('finishes lower priorities before a concurrent dispose and the concurrent dispose before higher priorities', async () => {
       const diContainer = createContainer({
         injectionMode: 'PROXY',
       })
-        .register(
-          'dependency2',
-          asClass(AsyncDisposeGetClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            asyncDisposePriority: 1,
-          }),
-        )
-        .register(
-          'dependency1',
-          asClass(AsyncDisposeSetClass, {
-            lifetime: 'SINGLETON',
-            asyncDispose: true,
-            asyncDisposePriority: 1,
-          }),
-        )
+      const lowerDependency = new DeferredDispose()
+      const concurrentDependency = new DeferredDispose()
+      const higherDependency = new DeferredDispose()
+      diContainer.register({
+        dependency1: asFunction(() => lowerDependency, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 1,
+        }),
+        dependency2: asFunction(() => concurrentDependency, {
+          lifetime: 'SINGLETON',
+          asyncDispose: { concurrent: true },
+          asyncDisposePriority: 2,
+        }),
+        dependency3: asFunction(() => higherDependency, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 3,
+        }),
+      })
 
-      await asyncDispose(diContainer)
+      const disposePromise = asyncDispose(diContainer)
+      await flushPromises()
 
-      const { dependency1: _1, dependency2: _2 } = diContainer.cradle
+      expect(lowerDependency.isStarted).toBe(true)
+      expect(concurrentDependency.isStarted).toBe(false)
 
-      expect(isDisposedGlobal).toBe(true)
+      lowerDependency.resolve()
+      await flushPromises()
+
+      expect(concurrentDependency.isStarted).toBe(true)
+      expect(higherDependency.isStarted).toBe(false)
+
+      concurrentDependency.resolve()
+      await flushPromises()
+
+      expect(higherDependency.isStarted).toBe(true)
+
+      higherDependency.resolve()
+      await disposePromise
+    })
+
+    it('runs sequential disposes of the same priority in order while concurrent ones are pending', async () => {
+      const loggedMessages: string[] = []
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const concurrentDependency = new DeferredDispose()
+      diContainer.register({
+        dependency1: asFunction(() => concurrentDependency, {
+          lifetime: 'SINGLETON',
+          asyncDispose: { concurrent: true },
+        }),
+        dependency2: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency3: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+      })
+
+      const disposePromise = asyncDispose(diContainer, {
+        enableDebugLogging: true,
+        loggerFn: (message) => loggedMessages.push(message),
+      })
+      await flushPromises()
+
+      expect(loggedMessages).toEqual([
+        'asyncDispose: dependency2 - started',
+        'asyncDispose: dependency1 - started',
+        'asyncDispose: dependency2 - finished',
+        'asyncDispose: dependency3 - started',
+        'asyncDispose: dependency3 - finished',
+      ])
+
+      concurrentDependency.resolve()
+      await disposePromise
+
+      expect(loggedMessages.at(-1)).toBe('asyncDispose: dependency1 - finished (concurrent)')
+    })
+
+    it('disposes every dependency when some fail and passes each failure to onDisposeError', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const disposeError1 = new Error('dispose 1 failed')
+      const disposeError2 = new Error('dispose 2 failed')
+      diContainer.register({
+        dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(disposeError1) }), {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency2: asFunction(() => ({ close: () => Promise.reject(disposeError2) }), {
+          lifetime: 'SINGLETON',
+          asyncDispose: { method: 'close', concurrent: true },
+        }),
+        dependency3: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency4: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 2,
+        }),
+      })
+      const onDisposeError = vi.fn()
+
+      await asyncDispose(diContainer, { onDisposeError })
+
+      expect(onDisposeError.mock.calls).toEqual([
+        ['dependency1', disposeError1],
+        ['dependency2', disposeError2],
+      ])
+      expect(diContainer.resolve<AsyncDisposeClass>('dependency3').isDisposed).toBe(true)
+      expect(diContainer.resolve<AsyncDisposeClass>('dependency4').isDisposed).toBe(true)
+    })
+
+    it('logs each dispose when debug logging is enabled', async () => {
+      const loggedMessages: string[] = []
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register({
+        dependency1: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency2: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: { concurrent: true },
+          asyncDisposePriority: 2,
+        }),
+      })
+      const manager = new AwilixManager({
+        diContainer,
+        enableDebugLogging: true,
+        loggerFn: (message) => loggedMessages.push(message),
+      })
+
+      await manager.executeDispose()
+
+      expect(loggedMessages).toEqual([
+        'asyncDispose: dependency1 - started',
+        'asyncDispose: dependency1 - finished',
+        'asyncDispose: dependency2 - started',
+        'asyncDispose: dependency2 - finished (concurrent)',
+      ])
     })
   })
 
