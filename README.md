@@ -177,7 +177,11 @@ The same option logs each dependency during `executeDispose()` (or `asyncDispose
 ```
 asyncDispose: dependency1 - started
 asyncDispose: dependency1 - finished
+asyncDispose: dependency2 - started
+asyncDispose: dependency2 - failed
 ```
+
+A dispose that is still hanging shows a `started` line with neither a `finished` nor a `failed` line after it.
 
 ## Non-blocking async initialization
 
@@ -336,7 +340,7 @@ const awilixManager = new AwilixManager({
 })
 ```
 
-`asyncDispose(diContainer, { onDisposeError })` accepts the same option. If the handler throws, `asyncDispose` waits for the concurrent disposes of that priority that are already running, starts no further disposes and rejects with what the handler threw.
+`asyncDispose(diContainer, { onDisposeError })` accepts the same option. The handler may be async, in which case it is awaited before the next priority starts. If the handler throws or rejects, `asyncDispose` waits for the concurrent disposes of that priority that are already running, starts no further disposes and rejects with what the handler threw.
 
 ## Concurrent async dispose
 
@@ -375,7 +379,7 @@ const awilixManager = new AwilixManager({
 })
 ```
 
-`asyncDispose(diContainer, { maxConcurrency })` accepts the same option.
+`asyncDispose(diContainer, { maxConcurrency })` accepts the same option. `AwilixManager` validates `maxConcurrency` and `maxDisposeConcurrency` in its constructor, so an invalid value fails at startup rather than during shutdown.
 
 ## Fetching dependencies based on tags
 

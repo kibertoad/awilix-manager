@@ -56,7 +56,10 @@ declare module 'awilix' {
 
 export type Logger = (message: string) => void
 
-export type DependencyErrorHandler = (dependencyName: string, error: unknown) => void
+export type DependencyErrorHandler = (
+  dependencyName: string,
+  error: unknown,
+) => void | Promise<void>
 
 /** @deprecated Use DependencyErrorHandler instead */
 export type NonBlockingInitErrorHandler = DependencyErrorHandler
@@ -108,6 +111,16 @@ export class AwilixManager {
         }
       }
     }
+
+    if (config.maxConcurrency !== undefined) {
+      validateMaxConcurrency(config.maxConcurrency, 'maxConcurrency')
+    }
+    // Checked here rather than in asyncDispose, so that a bad value fails at startup and not during
+    // shutdown, when it would leave every resource open
+    if (config.maxDisposeConcurrency !== undefined) {
+      validateMaxConcurrency(config.maxDisposeConcurrency, 'maxDisposeConcurrency')
+    }
+    validateAsyncDisposeConfig(config.diContainer)
   }
 
   async executeInit(): Promise<void> {
@@ -156,17 +169,16 @@ export type AsyncDisposeOptions = {
   enableDebugLogging?: boolean
   loggerFn?: Logger
   // Receives the failure of a dispose, and the remaining disposes still run. Without it, the first
-  // failure stops the remaining disposes and asyncDispose rejects with it.
+  // failure stops the remaining disposes and asyncDispose rejects with it. A handler that throws or
+  // rejects fails the priority.
   onDisposeError?: DependencyErrorHandler
   // How many `concurrent` disposes of one priority may run at the same time. Defaults to no limit.
   maxConcurrency?: number
 }
 
-type LifecycleMethod = AsyncInitMethod<unknown> | AsyncDisposeMethod<unknown>
+type LifecycleConfig<M> = { method?: M; concurrent?: boolean }
 
-function isLifecycleConfig(
-  value: any,
-): value is AsyncInitConfig<unknown> | AsyncDisposeConfig<unknown> {
+function isLifecycleConfig<M>(value: M | LifecycleConfig<M>): value is LifecycleConfig<M> {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -174,22 +186,34 @@ function isLifecycleConfig(
   )
 }
 
-function getLifecycleMethod(value: any): LifecycleMethod {
+function isAsyncInitConfig(value: unknown): value is AsyncInitConfig<unknown> {
+  return isLifecycleConfig(value)
+}
+
+// Only called for registrations whose asyncInit / asyncDispose is set, so value is never undefined
+// in practice; the optional ResolverOptions field is what makes it part of the type
+function getLifecycleMethod<M>(value: M | LifecycleConfig<M> | undefined): M | undefined {
   if (isLifecycleConfig(value)) {
     // If method is not specified, default to true (use default lifecycle method)
-    return value.method ?? true
+    return value.method ?? (true as M)
   }
   return value
 }
 
-function isNonBlocking(asyncInit: any): boolean {
-  return (
-    isLifecycleConfig(asyncInit) && 'nonBlocking' in asyncInit && asyncInit.nonBlocking === true
-  )
+function isNonBlocking(asyncInit: unknown): boolean {
+  return isAsyncInitConfig(asyncInit) && asyncInit.nonBlocking === true
 }
 
-function isConcurrent(value: any): boolean {
+function isConcurrent(value: unknown): boolean {
   return isLifecycleConfig(value) && value.concurrent === true
+}
+
+function createDebugLogger(enableDebugLogging: boolean | undefined, loggerFn: Logger): Logger {
+  return (message) => {
+    if (enableDebugLogging) {
+      loggerFn(message)
+    }
+  }
 }
 
 function logNonBlockingInitError(dependencyName: string, error: unknown): void {
@@ -233,7 +257,7 @@ function groupByPriority(
   return groups
 }
 
-function validateMaxConcurrency(maxConcurrency: number): void {
+function validateMaxConcurrency(maxConcurrency: number, optionName: string): void {
   if (
     !(
       (Number.isSafeInteger(maxConcurrency) && maxConcurrency >= 1) ||
@@ -241,19 +265,30 @@ function validateMaxConcurrency(maxConcurrency: number): void {
     )
   ) {
     throw new TypeError(
-      `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
+      `Expected ${optionName} to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
     )
   }
 }
 
 function validateAsyncInitConfig(entries: LifecycleEntry[], maxConcurrency: number): void {
-  validateMaxConcurrency(maxConcurrency)
+  validateMaxConcurrency(maxConcurrency, 'maxConcurrency')
 
   for (const [key, description] of entries) {
     if (isNonBlocking(description.asyncInit) && isConcurrent(description.asyncInit)) {
       throw new Error(
         `Invalid asyncInit config for ${key}: "nonBlocking" and "concurrent" cannot both be set`,
       )
+    }
+  }
+}
+
+// Dispose has no equivalent of nonBlocking, so an init-style config copied over would be ignored
+// silently and the dispose would block shutdown after all
+function validateAsyncDisposeConfig(diContainer: AwilixContainer): void {
+  for (const [key, description] of Object.entries(diContainer.registrations)) {
+    const { asyncDispose } = description
+    if (isLifecycleConfig(asyncDispose) && 'nonBlocking' in asyncDispose) {
+      throw new Error(`Invalid asyncDispose config for ${key}: "nonBlocking" is not supported`)
     }
   }
 }
@@ -336,17 +371,13 @@ export async function asyncInit(
 
   validateAsyncInitConfig(dependenciesWithAsyncInit, maxConcurrency)
 
-  const logDebug = (message: string) => {
-    if (enableDebugLogging) {
-      loggerFn(message)
-    }
-  }
+  const logDebug = createDebugLogger(enableDebugLogging, loggerFn)
 
   const startInit = (key: string, description: Resolver<any>): Promise<void> => {
     logDebug(`asyncInit: ${key} - started`)
 
     const resolvedValue = diContainer.resolve(key)
-    const method = getLifecycleMethod(description.asyncInit) as AsyncInitMethod<unknown>
+    const method = getLifecycleMethod(description.asyncInit)
 
     // Validate method existence synchronously before starting async init
     validateAsyncInitMethod(resolvedValue, method, key)
@@ -379,7 +410,7 @@ export async function asyncInit(
 
 function validateAsyncInitMethod(
   resolvedValue: any,
-  method: AsyncInitMethod<unknown>,
+  method: AsyncInitMethod<unknown> | undefined,
   key: string,
 ): void {
   if (method === true) {
@@ -396,7 +427,7 @@ function validateAsyncInitMethod(
 
 async function executeAsyncInitMethod(
   resolvedValue: any,
-  method: AsyncInitMethod<unknown>,
+  method: AsyncInitMethod<unknown> | undefined,
   _key: string,
   diContainer: AwilixContainer,
 ): Promise<void> {
@@ -471,7 +502,7 @@ export function getByPredicate(
 
 async function executeAsyncDisposeMethod(
   resolvedValue: any,
-  method: AsyncDisposeMethod<unknown>,
+  method: AsyncDisposeMethod<unknown> | undefined,
 ): Promise<void> {
   // use default asyncDispose method
   if (method === true) {
@@ -496,7 +527,7 @@ export async function asyncDispose(
     maxConcurrency = Number.POSITIVE_INFINITY,
   } = options
 
-  validateMaxConcurrency(maxConcurrency)
+  validateMaxConcurrency(maxConcurrency, 'maxConcurrency')
 
   const getPriority: PriorityResolver = (description) => description.asyncDisposePriority ?? 1
   const dependenciesWithAsyncDispose = sortByPriority(
@@ -506,30 +537,30 @@ export async function asyncDispose(
     getPriority,
   )
 
-  const logDebug = (message: string) => {
-    if (enableDebugLogging) {
-      loggerFn(message)
-    }
-  }
+  const logDebug = createDebugLogger(enableDebugLogging, loggerFn)
 
-  // Without onDisposeError, a failed dispose fails the priority, as it did before concurrent disposes
-  // existed. With it, the failure goes to the handler and the remaining disposes still run, so that
-  // every resource gets released on shutdown. Only an error thrown by the handler then fails it.
+  // Without onDisposeError, a failed dispose fails the priority. With it, the failure goes to the
+  // handler and the remaining disposes still run, so that every resource gets released on shutdown.
+  // Only an error thrown or rejected by the handler then fails the priority. Logging stays outside
+  // the try, so that a throwing loggerFn is never reported as a failed dispose.
   const run = async (key: string, description: Resolver<any>, concurrent: boolean) => {
-    try {
-      logDebug(`asyncDispose: ${key} - started`)
+    logDebug(`asyncDispose: ${key} - started`)
 
+    try {
       const resolvedValue = diContainer.resolve(key)
-      const method = getLifecycleMethod(description.asyncDispose) as AsyncDisposeMethod<unknown>
+      const method = getLifecycleMethod(description.asyncDispose)
 
       await executeAsyncDisposeMethod(resolvedValue, method)
-      logDebug(`asyncDispose: ${key} - finished${concurrent ? ' (concurrent)' : ''}`)
     } catch (error) {
+      logDebug(`asyncDispose: ${key} - failed`)
       if (!onDisposeError) {
         throw error
       }
-      onDisposeError(key, error)
+      await onDisposeError(key, error)
+      return
     }
+
+    logDebug(`asyncDispose: ${key} - finished${concurrent ? ' (concurrent)' : ''}`)
   }
 
   for (const priorityGroup of groupByPriority(dependenciesWithAsyncDispose, getPriority)) {

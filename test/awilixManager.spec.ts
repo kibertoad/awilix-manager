@@ -254,6 +254,47 @@ describe('awilixManager', () => {
         strictBooleanEnforced: true,
       })
     })
+
+    it.each([0, 1.5, -1, Number.NaN])('throws on maxConcurrency %s', (maxConcurrency) => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+
+      expect(() => new AwilixManager({ diContainer, maxConcurrency })).toThrow(
+        `Expected maxConcurrency to be an integer from 1 and up or Infinity, got ${maxConcurrency}`,
+      )
+    })
+
+    it.each([0, 1.5, -1, Number.NaN])(
+      'throws on maxDisposeConcurrency %s',
+      (maxDisposeConcurrency) => {
+        const diContainer = createContainer({
+          injectionMode: 'PROXY',
+        })
+
+        expect(() => new AwilixManager({ diContainer, maxDisposeConcurrency })).toThrow(
+          `Expected maxDisposeConcurrency to be an integer from 1 and up or Infinity, got ${maxDisposeConcurrency}`,
+        )
+      },
+    )
+
+    it('throws on an asyncDispose config with nonBlocking', () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register(
+        'dependency1',
+        asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          // @ts-expect-error nonBlocking is only supported by asyncInit
+          asyncDispose: { method: 'asyncDispose', nonBlocking: true },
+        }),
+      )
+
+      expect(() => new AwilixManager({ diContainer })).toThrow(
+        'Invalid asyncDispose config for dependency1: "nonBlocking" is not supported',
+      )
+    })
   })
 
   describe('getByPredicate', () => {
@@ -2180,6 +2221,124 @@ describe('awilixManager', () => {
       ])
       expect(diContainer.resolve<AsyncDisposeClass>('dependency3').isDisposed).toBe(true)
       expect(diContainer.resolve<AsyncDisposeClass>('dependency4').isDisposed).toBe(true)
+    })
+
+    it('waits for an async onDisposeError before the next priority starts', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const nextPriorityDependency = new DeferredDispose()
+      diContainer.register({
+        dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(new Error()) }), {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency2: asFunction(() => nextPriorityDependency, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 2,
+        }),
+      })
+      let resolveHandler: () => void = () => undefined
+      const onDisposeError = () =>
+        new Promise<void>((resolve) => {
+          resolveHandler = resolve
+        })
+
+      const disposePromise = asyncDispose(diContainer, { onDisposeError })
+      await flushPromises()
+
+      expect(nextPriorityDependency.isStarted).toBe(false)
+
+      resolveHandler()
+      await flushPromises()
+
+      expect(nextPriorityDependency.isStarted).toBe(true)
+
+      nextPriorityDependency.resolve()
+      await disposePromise
+    })
+
+    it('rejects with the rejection of an async onDisposeError', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const handlerError = new Error('handler failed')
+      const nextPriorityDependency = new DeferredDispose()
+      diContainer.register({
+        dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(new Error()) }), {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency2: asFunction(() => nextPriorityDependency, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+          asyncDisposePriority: 2,
+        }),
+      })
+
+      await expect(
+        asyncDispose(diContainer, { onDisposeError: () => Promise.reject(handlerError) }),
+      ).rejects.toBe(handlerError)
+      expect(nextPriorityDependency.isStarted).toBe(false)
+    })
+
+    it('does not pass a loggerFn failure to onDisposeError', async () => {
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      const loggerError = new Error('logger failed')
+      diContainer.register({
+        dependency1: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+      })
+      const onDisposeError = vi.fn()
+
+      await expect(
+        asyncDispose(diContainer, {
+          enableDebugLogging: true,
+          loggerFn: (message) => {
+            if (message.endsWith('finished')) {
+              throw loggerError
+            }
+          },
+          onDisposeError,
+        }),
+      ).rejects.toBe(loggerError)
+      expect(onDisposeError).not.toHaveBeenCalled()
+      expect(diContainer.resolve<AsyncDisposeClass>('dependency1').isDisposed).toBe(true)
+    })
+
+    it('logs a failed dispose when debug logging is enabled', async () => {
+      const loggedMessages: string[] = []
+      const diContainer = createContainer({
+        injectionMode: 'PROXY',
+      })
+      diContainer.register({
+        dependency1: asFunction(() => ({ asyncDispose: () => Promise.reject(new Error()) }), {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+        dependency2: asClass(AsyncDisposeClass, {
+          lifetime: 'SINGLETON',
+          asyncDispose: true,
+        }),
+      })
+
+      await asyncDispose(diContainer, {
+        enableDebugLogging: true,
+        loggerFn: (message) => loggedMessages.push(message),
+        onDisposeError: () => undefined,
+      })
+
+      expect(loggedMessages).toEqual([
+        'asyncDispose: dependency1 - started',
+        'asyncDispose: dependency1 - failed',
+        'asyncDispose: dependency2 - started',
+        'asyncDispose: dependency2 - finished',
+      ])
     })
 
     it('logs each dispose when debug logging is enabled', async () => {
