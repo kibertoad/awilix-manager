@@ -172,6 +172,17 @@ await asyncInit(diContainer, {
 })
 ```
 
+The same option logs each dependency during `executeDispose()` (or `asyncDispose(diContainer, { enableDebugLogging, loggerFn })`), which helps to find the dispose that holds up a graceful shutdown:
+
+```
+asyncDispose: dependency1 - started
+asyncDispose: dependency1 - finished
+asyncDispose: dependency2 - started
+asyncDispose: dependency2 - failed
+```
+
+A dispose that is still hanging shows a `started` line with neither a `finished` nor a `failed` line after it.
+
 ## Non-blocking async initialization
 
 In some cases you may want to fire off an async initialization without waiting for it to complete. This is useful for background tasks that don't need to be ready before the application starts accepting requests.
@@ -313,6 +324,62 @@ const awilixManager = new AwilixManager({
 `concurrent` and `nonBlocking` cannot be combined. `asyncInit` rejects a registration that sets both before it starts any init.
 
 If any init of a priority fails, no further inits of that priority start, including concurrent inits still waiting for a slot. `asyncInit` waits for the concurrent inits of that priority that are already running to settle, and then rejects with the error that happened first. Apart from `nonBlocking` inits, nothing is left initializing in the background when the caller handles the failure.
+
+## Async dispose errors
+
+By default, the first dispose that fails stops the remaining disposes, and `asyncDispose` rejects with its error. If `concurrent` disposes of the same priority are already running, the rejection waits for them to settle.
+
+To release every resource on shutdown even when some disposes fail, pass `onDisposeError`. Each failure goes to the handler, the remaining disposes still run, and `asyncDispose` resolves once everything has been disposed:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  onDisposeError: (dependencyName, error) => {
+    logger.error({ err: error }, `Failed to dispose ${dependencyName}`)
+  },
+})
+```
+
+`asyncDispose(diContainer, { onDisposeError })` accepts the same option. The handler may be async, in which case it is awaited before the next priority starts. If the handler throws or rejects, `asyncDispose` waits for the concurrent disposes of that priority that are already running, starts no further disposes and rejects with what the handler threw.
+
+## Concurrent async dispose
+
+By default, dependencies are disposed one after another, even when they share a priority, so one slow dispose delays every dispose sorted after it. When a group of dependencies does not depend on each other, for example consumers of different queues, you can let them dispose at the same time with the `concurrent` option:
+
+```js
+diContainer.register(
+  'ordersConsumer',
+  asClass(OrdersConsumer, {
+    asyncDispose: { method: 'close', concurrent: true },
+    asyncDisposePriority: 10,
+  }),
+)
+
+diContainer.register(
+  'invoicesConsumer',
+  asClass(InvoicesConsumer, {
+    asyncDispose: { method: 'close', concurrent: true },
+    asyncDisposePriority: 10,
+  }),
+)
+```
+
+`method` accepts the same values as `asyncDispose` itself (`true`, a method name or a function) and defaults to `true`. Priorities act as barriers, the same way as for [concurrent async initialization](#concurrent-async-initialization):
+
+- every dependency with a lower `asyncDisposePriority` finishes disposing before a concurrent dispose starts
+- a concurrent dispose finishes before any dependency with a higher `asyncDisposePriority` starts
+- dependencies of the same priority without the option still run one after another, in the usual order, while the concurrent ones run alongside them
+
+To cap how many concurrent disposes of one priority run at the same time, pass `maxDisposeConcurrency`. It is separate from `maxConcurrency`, which only applies to init, and defaults to no limit:
+
+```js
+const awilixManager = new AwilixManager({
+  diContainer,
+  maxDisposeConcurrency: 5,
+})
+```
+
+`asyncDispose(diContainer, { maxConcurrency })` accepts the same option. `AwilixManager` validates `maxConcurrency` and `maxDisposeConcurrency` in its constructor, so an invalid value fails at startup rather than during shutdown.
 
 ## Fetching dependencies based on tags
 
