@@ -23,7 +23,7 @@
         "@types/node": "^22.15.20",
         "@vitest/coverage-v8": "^5.0.0",
         "awilix": "^13.0.5",
-        "del-cli": "^7.0.0",
+        "del-cli": "^8.0.0",
         "typescript": "^7.0.2",
         "vitest": "^5.0.0"
     },
