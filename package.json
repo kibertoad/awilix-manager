@@ -19,7 +19,7 @@
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.12",
-        "@lokalise/biome-config": "^3.1.1",
+        "@lokalise/biome-config": "^4.0.0",
         "@types/node": "^22.15.20",
         "@vitest/coverage-v8": "^5.0.0",
         "awilix": "^13.0.5",
