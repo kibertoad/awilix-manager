@@ -12,8 +12,8 @@ importers:
         specifier: ^2.5.12
         version: 2.6.2
       '@lokalise/biome-config':
-        specifier: ^3.1.1
-        version: 3.1.1
+        specifier: ^4.0.0
+        version: 4.0.0
       '@types/node':
         specifier: ^22.15.20
         version: 22.20.1
@@ -291,8 +291,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lokalise/biome-config@3.1.1':
-    resolution: {integrity: sha512-B0VeqoX/PeVOIEgZhmnOIAFo9w8MV+MRdDue6lO7LnIjNB92vz+0onRV0v4RY2oACXoxVS3B2CfIzLbBpmbpQQ==}
+  '@lokalise/biome-config@4.0.0':
+    resolution: {integrity: sha512-ShVhPJpEiXcEu+yhusmg6053YP4oHhMa5/Lzm9gPkIElpmGwsnoaclaKPOa9uMZYz2UfynRD3J3PKwts/nl46Q==}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -1062,7 +1062,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@lokalise/biome-config@3.1.1': {}
+  '@lokalise/biome-config@4.0.0': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
