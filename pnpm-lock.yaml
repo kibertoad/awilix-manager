@@ -25,7 +25,7 @@ importers:
         version: 13.0.5
       del-cli:
         specifier: ^8.0.0
-        version: 8.0.0
+        version: 8.0.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -637,8 +637,8 @@ packages:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
     engines: {node: '>=18'}
 
-  del-cli@8.0.0:
-    resolution: {integrity: sha512-H5Ad74ydhJDLp1HHQbbcWP4qq+aHOeVoE9IIqsTJdSDSeF17HxvfY8UCLpfjBBk9OR8J5olkJO3T8fOBXKeCMg==}
+  del-cli@8.0.1:
+    resolution: {integrity: sha512-Z4+xLjVJs9dMN4gDMRfY/7b7WItNOB5EOKu9BenbJD63olx9YM5SU/DEuDFWvN0B1BdGIzejCJFgPt2vIGwj1A==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -748,8 +748,8 @@ packages:
     resolution: {integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==}
     engines: {node: '>=12.20.0'}
 
-  p-map@7.0.8:
-    resolution: {integrity: sha512-MitaVsCuCFIvOLLPIU7NnfrZvS9H9h7kwMUkDo+T2pEISaJD48IV9S8iIdXB7PsvvdxyYcsSTTrr90XKsbulNw==}
+  p-map@7.1.0:
+    resolution: {integrity: sha512-HaSJ9hNZOxTUSATfB48Qi7U2+GF1eECjI39nkeLmCWQrSOYr1z4NepR0rpWiZO77pYwUWU2cJ5NIgsmoFCsYDQ==}
     engines: {node: '>=18'}
 
   picocolors@1.1.1:
@@ -1276,7 +1276,7 @@ snapshots:
 
   chai@6.3.0: {}
 
-  del-cli@8.0.0:
+  del-cli@8.0.1:
     dependencies:
       del: 9.0.1
       meow: 14.1.0
@@ -1288,7 +1288,7 @@ snapshots:
       is-glob: 4.0.3
       is-path-cwd: 4.0.1
       is-path-inside: 4.0.0
-      p-map: 7.0.8
+      p-map: 7.1.0
       presentable-error: 0.0.1
       slash: 5.1.0
 
@@ -1405,7 +1405,7 @@ snapshots:
 
   obug@3.0.0: {}
 
-  p-map@7.0.8: {}
+  p-map@7.1.0: {}
 
   picocolors@1.1.1: {}
 
