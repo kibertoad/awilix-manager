@@ -12,8 +12,8 @@ importers:
         specifier: ^2.5.12
         version: 2.6.6
       '@lokalise/biome-config':
-        specifier: ^3.1.1
-        version: 3.1.1
+        specifier: ^5.0.0
+        version: 5.0.0(@biomejs/biome@2.6.6)
       '@types/node':
         specifier: ^22.15.20
         version: 22.20.1
@@ -291,8 +291,10 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lokalise/biome-config@3.1.1':
-    resolution: {integrity: sha512-B0VeqoX/PeVOIEgZhmnOIAFo9w8MV+MRdDue6lO7LnIjNB92vz+0onRV0v4RY2oACXoxVS3B2CfIzLbBpmbpQQ==}
+  '@lokalise/biome-config@5.0.0':
+    resolution: {integrity: sha512-ZtK58OBgMnSV0Ix5qxBW/csTiZNEMEplEu0WBpemStaWue1bc5bLCnoWqbZE6598Z1vGlBnqq83TWGlw6T5NMA==}
+    peerDependencies:
+      '@biomejs/biome': ^2.6.4
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -1060,7 +1062,9 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@lokalise/biome-config@3.1.1': {}
+  '@lokalise/biome-config@5.0.0(@biomejs/biome@2.6.6)':
+    dependencies:
+      '@biomejs/biome': 2.6.6
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
